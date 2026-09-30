@@ -138,3 +138,8 @@ Schlüssel und Quick-Login-URL liegen **nur** am Kassen-PC (`C:\Lieperts\kassa-z
   Tagesdaten (`minibar`) kommen auf den Knopf „Minibar <Zimmer>“ (von Manuel angelegt, Gruppe ZIMMER TEST, 20 %),
   z. B. „Minibar Pfeffer - 1*Bier“ 5,00 € (`MINIBAR_PREIS=ja`); ohne offene Posten wieder „Minibar <Zimmer>“ 0,00.
   Der Helfer findet die vier Artikel über den Namen – Namen nicht ändern.
+- **Stand 01.10.2026, nach Neustart-Probe – läuft:** automatische Anmeldung (netplwiz mit Microsoft-Konto),
+  Kassa als maximiertes App-Fenster (eigenes Profil `C:\Lieperts\chrome-kassa`, Vollbild über den Kassa-Knopf, Esc raus),
+  normales Chrome mit Claude-Erweiterung minimiert im Autostart, Bildschirm nach 15 Min. aus, PC nie.
+  Minibar getrennt: „Minibar <Zimmer>“ (Getränke 20 %) und „Minibar Snacks <Zimmer>“ (10 %).
+- Noch offen: Schlüssel und Admin-Quick-Login einmal ohne Foto erneuern; erster echter Lauf Fr 02.10. 07:15.

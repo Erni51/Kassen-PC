@@ -29,7 +29,8 @@ GET /wp-json/lieperts/v1/kassa-tagesdaten
   {
     "datum": "2026-10-02",
     "drucken": true,              // Drucktag-Regel aus v30.990/v31.015 fuer JETZT
-                                  // (vor 11 Uhr Frueh-Regel Fr/Sa/So, danach Abend Mo/Di/Fr/Sa;
+                                  // (vor 11 Uhr Frueh-Regel Fr/Sa/So - Manuel 30.09.: Fr und Sa
+                                  //  AUCH morgens, live kennt v30.990 frueh nur So -, danach Abend Mo/Di/Fr/Sa;
                                   //  Mi/Do nur bei echter An- oder Abreise)
     "zimmer": [
       { "zimmer": "Salbei",        // Salbei | Muskat | Pfeffer | Rosmarin

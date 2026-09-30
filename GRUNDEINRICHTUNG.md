@@ -1,5 +1,11 @@
 # Neuer Kassen-PC – von Grund auf einrichten
 
+> **Stand 30.09. abends – geht vor:** Es gilt die [README](README.md) (nach der Übergabe vom 30.09.).
+> Abweichend von unten: Konto heißt `Kassa`, **kein USB-Stick** (alles aus dem Internet), Aufgaben
+> „Kassa früh“ 07:15 und „Kassa abend“ 16:15, Kassa im Kiosk `http://192.168.178.200/kasse/menu`,
+> und **Claude Desktop kommt auf den PC** (Übergabe Schritt 4), damit Claude Skripte und Protokolle
+> aus der Ferne ansehen kann. Der Rest (Programme, Chrome ohne Google-Konto, Neustart-Probe) gilt weiter.
+
 Stand 30.09.2026. Ergänzt die [README](README.md): Hier steht, **wie der PC grundsätzlich aufgebaut wird**.
 Die Lieperts-Automatik (Tagesblatt-Druck, Cron) kommt in Phase 5 mit `START.cmd` dazu.
 

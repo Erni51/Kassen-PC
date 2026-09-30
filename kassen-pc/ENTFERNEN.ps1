@@ -4,9 +4,9 @@
 # Als Administrator starten.
 # ============================================================
 
-foreach ($n in 'Lieperts Cron', 'Lieperts-Tagesblatt-1630', 'Lieperts-Tagesblatt-Frueh-0730') {
+foreach ($n in 'Lieperts Cron', 'Kassa frueh', 'Kassa abend', 'Lieperts-Tagesblatt-1630', 'Lieperts-Tagesblatt-Frueh-0730') {
     schtasks /Delete /TN $n /F
 }
-$lnk = Join-Path ([Environment]::GetFolderPath('Startup')) 'Kassa kassenGeist.lnk'
+$lnk = Join-Path ([Environment]::GetFolderPath('Startup')) 'Kassa.lnk'
 if (Test-Path $lnk) { Remove-Item $lnk; Write-Host 'Kassa-Autostart entfernt' }
 Write-Host 'Energiespar-Einstellung zurueck (falls gewuenscht): powercfg /restoredefaultschemes'

@@ -13,15 +13,17 @@
 #   ... -Lauf test -OhneDruck    holt nur und legt die Datei ins Archiv
 #
 # Zugang: Datei kassa-zugang.txt im selben Ordner, zwei Zeilen:
-#   HEADER=<Name der Kopfzeile aus v2>
+#   HEADER=X-Lieperts-Kassa-Key
 #   SCHLUESSEL=<LRV8_KASSA_KEY aus der wp-config.php>
+# Legt SETUP-schluessel-erzeugen.ps1 an.
 # Diese Datei NIE ins Internet, nach GitHub oder in einen Chat stellen.
 # ============================================================
 
 param(
     [ValidateSet('abend', 'frueh', 'test')]
     [string]$Lauf = 'abend',
-    [switch]$OhneDruck
+    [switch]$OhneDruck,
+    [switch]$Immer          # Wochentag nicht pruefen (WordPress hat schon "drucken: ja" gesagt)
 )
 
 # --- Drucktage (gleich wie im Plugin, v30.990 / v31.015) --------------------
@@ -43,8 +45,8 @@ function Schreib($text) {
 
 # --- 1. Ist heute ein Lauf vorgesehen? ---------------------------------------
 $tag = [int](Get-Date).DayOfWeek
-if ($Lauf -eq 'abend' -and $Abend -notcontains $tag) { Schreib 'Heute ist kein Lauf vorgesehen.'; exit 0 }
-if ($Lauf -eq 'frueh' -and $Frueh -notcontains $tag) { Schreib 'Heute ist kein Lauf vorgesehen.'; exit 0 }
+if (-not $Immer -and $Lauf -eq 'abend' -and $Abend -notcontains $tag) { Schreib 'Heute ist kein Lauf vorgesehen.'; exit 0 }
+if (-not $Immer -and $Lauf -eq 'frueh' -and $Frueh -notcontains $tag) { Schreib 'Heute ist kein Lauf vorgesehen.'; exit 0 }
 
 # --- 2. Zugang lesen ----------------------------------------------------------
 $zugangDatei = Join-Path $Ordner 'kassa-zugang.txt'
@@ -55,7 +57,8 @@ if (Test-Path $zugangDatei) {
         if ($z -match '^\s*SCHLUESSEL\s*=\s*(.+?)\s*$') { $Schluessel = $Matches[1] }
     }
 }
-if (-not $Header -or -not $Schluessel) {
+if (-not $Header) { $Header = 'X-Lieperts-Kassa-Key' }
+if (-not $Schluessel) {
     Schreib 'FEHLER: kassa-zugang.txt fehlt oder ist unvollstaendig - nichts gedruckt.'
     exit 2
 }

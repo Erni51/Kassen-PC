@@ -1,29 +1,24 @@
 # ============================================================
 # Neuer Kassen-PC - alles in einem Durchgang einrichten
+# (nach UEBERGABE-Kassen-PC-NEU-Einrichtung-30-09-2026)
 #
-# Muss als Administrator laufen (Titelzeile "Administrator").
-# Tut nur Dinge, die sich mit ENTFERNEN.ps1 wieder rueckgaengig machen lassen.
+# Als der Benutzer starten, der an der Kassa immer angemeldet ist (z. B. "Kassa"),
+# mit Administrator-Rechten. Alles laesst sich mit ENTFERNEN.ps1 zuruecknehmen.
 #
-#   1. Ordner C:\Lieperts anlegen, Skripte hineinkopieren
-#   2. Zugang fuer das Tagesblatt (kassa-zugang.txt) uebernehmen oder abfragen
-#   3. Drei geplante Aufgaben anlegen:
-#        Lieperts Cron                  alle 5 Minuten, wp-cron.php
-#        Lieperts-Tagesblatt-1630       taeglich 16:30, -Lauf abend
-#        Lieperts-Tagesblatt-Frueh-0730 taeglich 07:30, -Lauf frueh
-#      (das Skript entscheidet selbst ueber den Wochentag)
-#   4. Energiesparen aus - der PC darf nie einschlafen
-#   5. Optional: Kassa (kassenGeist) beim Anmelden automatisch im Chrome oeffnen
-#   6. Probelauf: Cron einmal, Tagesblatt holen (ohne Druck)
-#
-# Parameter:
-#   -Sicherung D:\Kassen-PC-Sicherung   Ordner mit der Sicherung vom alten PC
-#   -KassaUrl  http://192.168.178.200   Adresse der Kassa fuer den Autostart
-#   -OhneAutostart                      Kassa-Autostart nicht anlegen
+#   1. Ordner C:\Lieperts, Skripte hineinkopieren
+#   2. Schluessel und Quick-Login (SETUP-schluessel-erzeugen.ps1)
+#   3. Geplante Aufgaben:
+#        Kassa frueh    taeglich 07:15  HELFER -Lauf frueh  (Preise, dann Tagesblatt)
+#        Kassa abend    taeglich 16:15  HELFER -Lauf abend  (Preise, dann Tagesblatt)
+#        Lieperts Cron  alle 5 Minuten  wp-cron.php
+#   4. Energie: nie schlafen, Bildschirm nie aus; Nutzungszeit 06-24 Uhr
+#   5. Standarddrucker nicht mehr automatisch umstellen
+#   6. Kassa im Chrome-Kiosk beim Anmelden
+#   7. Probelauf (ohne Druck, ohne Schreiben in die Kassa)
 # ============================================================
 
 param(
-    [string]$Sicherung = '',
-    [string]$KassaUrl = 'http://192.168.178.200',
+    [string]$KassaUrl = 'http://192.168.178.200/kasse/menu',
     [switch]$OhneAutostart
 )
 
@@ -40,133 +35,109 @@ if (-not $ich.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) 
     Write-Host 'Bitte als Administrator starten (Windows-Taste, "powershell" tippen, Strg+Umschalt+Enter).' -ForegroundColor Red
     exit 1
 }
-$Benutzer = $env:USERDOMAIN + '\' + $env:USERNAME
-Write-Host "Richte ein fuer Benutzer: $Benutzer" -ForegroundColor Cyan
-Write-Host '(Das muss der Benutzer sein, der an der Kassa immer angemeldet ist.)'
+Write-Host "Richte ein fuer Benutzer: $env:USERNAME" -ForegroundColor Cyan
 
 # --- 1. Ordner und Skripte ----------------------------------------------------
 Schritt '1. Ordner C:\Lieperts'
 New-Item -ItemType Directory -Force -Path $Ziel, (Join-Path $Ziel 'Archiv') | Out-Null
-foreach ($f in 'DRUCK-tagesblatt-v3.ps1', 'CRON-lieperts-v1.ps1', 'PRUEFEN.ps1', 'ENTFERNEN.ps1') {
+foreach ($f in 'HELFER-kasse-zimmerpreise.ps1', 'DRUCK-tagesblatt-v3.ps1', 'CRON-lieperts-v1.ps1',
+               'SETUP-schluessel-erzeugen.ps1', 'PRUEFEN.ps1', 'ENTFERNEN.ps1') {
     Copy-Item (Join-Path $Quelle $f) $Ziel -Force
     Gut $f
 }
-if ($Sicherung -and (Test-Path $Sicherung)) {
-    $alt = Join-Path $Ziel 'vom-alten-PC'
-    New-Item -ItemType Directory -Force -Path $alt | Out-Null
-    Copy-Item (Join-Path $Sicherung '*') $alt -Recurse -Force
-    Gut "Sicherung vom alten PC nach $alt kopiert"
-}
 
-# --- 2. Zugang fuer das Tagesblatt --------------------------------------------
-Schritt '2. Zugang fuer das Tagesblatt'
-$zugang = Join-Path $Ziel 'kassa-zugang.txt'
-if (-not (Test-Path $zugang)) {
-    # a) liegt schon eine fertige kassa-zugang.txt in der Sicherung?
-    if ($Sicherung -and (Test-Path (Join-Path $Sicherung 'kassa-zugang.txt'))) {
-        Copy-Item (Join-Path $Sicherung 'kassa-zugang.txt') $zugang
-    }
-}
-if (-not (Test-Path $zugang)) {
-    # b) aus dem alten Skript v2 herauslesen
-    $v2 = $null
-    if ($Sicherung) { $v2 = Get-ChildItem $Sicherung -Recurse -Filter 'DRUCK-tagesblatt-v2.ps1' -ErrorAction SilentlyContinue | Select-Object -First 1 }
-    if ($v2) {
-        $text = Get-Content $v2.FullName -Raw
-        $h = ''; $k = ''
-        if ($text -match "Headers\.Add\(\s*['""]([^'""]+)['""]\s*,\s*['""]([^'""]+)['""]") { $h = $Matches[1]; $k = $Matches[2] }
-        elseif ($text -match "@\{\s*['""]?([A-Za-z0-9_-]+)['""]?\s*=\s*['""]([^'""]+)['""]") { $h = $Matches[1]; $k = $Matches[2] }
-        if ($h -and $k -and $k -notmatch '^\$') {
-            Set-Content -Path $zugang -Value @("HEADER=$h", "SCHLUESSEL=$k") -Encoding ASCII
-            Gut "Zugang aus dem alten Skript uebernommen (Kopfzeile: $h)"
-        } else {
-            Achtung 'Im alten Skript keinen Schluessel automatisch gefunden. Diese Zeilen stehen dort:'
-            Select-String -Path $v2.FullName -Pattern 'Header|KEY|Schluessel|key' | ForEach-Object { Write-Host ('    ' + $_.Line.Trim()) }
-        }
-    }
-}
-if (-not (Test-Path $zugang)) {
-    # c) von Hand eintippen
-    Achtung 'Bitte Kopfzeilen-Namen und Schluessel eintippen (steht im alten Skript bzw. als LRV8_KASSA_KEY in der wp-config.php).'
-    $h = Read-Host '  Name der Kopfzeile (HEADER)'
-    $k = Read-Host '  Schluessel'
-    if ($h -and $k) {
-        Set-Content -Path $zugang -Value @("HEADER=$h", "SCHLUESSEL=$k") -Encoding ASCII
-        Gut 'Zugang gespeichert'
-    } else {
-        Achtung 'Kein Zugang - das Tagesblatt wird erst gedruckt, wenn C:\Lieperts\kassa-zugang.txt existiert.'
-    }
-} else {
-    Gut 'kassa-zugang.txt vorhanden'
-}
+# --- 2. Schluessel und Quick-Login --------------------------------------------
+Schritt '2. Schluessel und Quick-Login'
+& (Join-Path $Ziel 'SETUP-schluessel-erzeugen.ps1')
 
 # --- 3. Geplante Aufgaben -----------------------------------------------------
 Schritt '3. Geplante Aufgaben'
 $ps = 'powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File'
 
+# alte Namen aus der ersten Fassung wegraeumen
+foreach ($alt in 'Lieperts-Tagesblatt-1630', 'Lieperts-Tagesblatt-Frueh-0730') {
+    schtasks /Query /TN $alt 2>$null | Out-Null
+    if ($LASTEXITCODE -eq 0) { schtasks /Delete /TN $alt /F | Out-Null; Gut "alte Aufgabe $alt entfernt" }
+}
+
 schtasks /Create /F /TN 'Lieperts Cron' /SC MINUTE /MO 5 /RU SYSTEM /RL HIGHEST `
     /TR "$ps $Ziel\CRON-lieperts-v1.ps1" | Out-Null
-if ($LASTEXITCODE -eq 0) { Gut 'Lieperts Cron (alle 5 Minuten, laeuft auch ohne Anmeldung)' } else { Achtung 'Lieperts Cron NICHT angelegt' }
+if ($LASTEXITCODE -eq 0) { Gut 'Lieperts Cron (alle 5 Minuten, auch ohne Anmeldung)' } else { Achtung 'Lieperts Cron NICHT angelegt' }
 
-# Druck laeuft ohne /RU als der angemeldete Benutzer (nur wenn angemeldet),
-# damit er den Standarddrucker sieht und kein Kennwort gebraucht wird.
-schtasks /Create /F /TN 'Lieperts-Tagesblatt-1630' /SC DAILY /ST 16:30 `
-    /TR "$ps $Ziel\DRUCK-tagesblatt-v3.ps1 -Lauf abend" | Out-Null
-if ($LASTEXITCODE -eq 0) { Gut 'Lieperts-Tagesblatt-1630 (Abendblatt Mo, Di, Fr, Sa)' } else { Achtung 'Abend-Aufgabe NICHT angelegt' }
+# Ohne /RU: laeuft als dieser Benutzer, solange er angemeldet ist (automatische
+# Anmeldung ist an). So sieht das Skript den Standarddrucker, und es braucht kein Kennwort.
+schtasks /Create /F /TN 'Kassa frueh' /SC DAILY /ST 07:15 `
+    /TR "$ps $Ziel\HELFER-kasse-zimmerpreise.ps1 -Lauf frueh" | Out-Null
+if ($LASTEXITCODE -eq 0) { Gut 'Kassa frueh (07:15)' } else { Achtung 'Kassa frueh NICHT angelegt' }
 
-schtasks /Create /F /TN 'Lieperts-Tagesblatt-Frueh-0730' /SC DAILY /ST 07:30 `
-    /TR "$ps $Ziel\DRUCK-tagesblatt-v3.ps1 -Lauf frueh" | Out-Null
-if ($LASTEXITCODE -eq 0) { Gut 'Lieperts-Tagesblatt-Frueh-0730 (Fruehblatt Fr, Sa, So)' } else { Achtung 'Frueh-Aufgabe NICHT angelegt' }
+schtasks /Create /F /TN 'Kassa abend' /SC DAILY /ST 16:15 `
+    /TR "$ps $Ziel\HELFER-kasse-zimmerpreise.ps1 -Lauf abend" | Out-Null
+if ($LASTEXITCODE -eq 0) { Gut 'Kassa abend (16:15)' } else { Achtung 'Kassa abend NICHT angelegt' }
 
-# Verpasste Laeufe nachholen (z. B. PC war um 16:30 kurz aus)
-foreach ($n in 'Lieperts-Tagesblatt-1630', 'Lieperts-Tagesblatt-Frueh-0730', 'Lieperts Cron') {
+foreach ($n in 'Kassa frueh', 'Kassa abend', 'Lieperts Cron') {
     try {
         $t = Get-ScheduledTask -TaskName $n -ErrorAction Stop
-        $t.Settings.StartWhenAvailable = $true
+        $t.Settings.StartWhenAvailable = $true          # verpassten Lauf nachholen
         $t.Settings.DisallowStartIfOnBatteries = $false
         $t.Settings.StopIfGoingOnBatteries = $false
-        $t.Settings.ExecutionTimeLimit = 'PT10M'
+        $t.Settings.ExecutionTimeLimit = 'PT30M'        # Helfer wiederholt selbst 3x im Abstand von 5 Min.
         Set-ScheduledTask -InputObject $t | Out-Null
     } catch { }
 }
 
-# --- 4. Energiesparen aus -----------------------------------------------------
-Schritt '4. Energiesparen aus'
+# --- 4. Energie und Nutzungszeit ----------------------------------------------
+Schritt '4. Energie und Updates'
 powercfg /change standby-timeout-ac 0
 powercfg /change hibernate-timeout-ac 0
-powercfg /change standby-timeout-dc 0
+powercfg /change monitor-timeout-ac 0
+powercfg /change disk-timeout-ac 0
 powercfg /hibernate off
-Gut 'PC schlaeft nie ein (Bildschirm darf ausgehen)'
+Gut 'nie schlafen, Bildschirm und Festplatte nie aus'
+# Windows erlaubt hoechstens 18 Stunden Nutzungszeit: 06:00 bis 24:00 -> Neustarts nur nachts
+$wu = 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings'
+New-Item -Path $wu -Force | Out-Null
+Set-ItemProperty -Path $wu -Name ActiveHoursStart -Value 6 -Type DWord
+Set-ItemProperty -Path $wu -Name ActiveHoursEnd -Value 0 -Type DWord
+Set-ItemProperty -Path $wu -Name SmartActiveHoursState -Value 0 -Type DWord
+Gut 'Nutzungszeit 06:00-24:00 (Update-Neustarts nur nachts)'
 
-# --- 5. Kassa beim Anmelden oeffnen -------------------------------------------
+# --- 5. Standarddrucker festhalten --------------------------------------------
+Schritt '5. Standarddrucker'
+Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Windows' -Name LegacyDefaultPrinterMode -Value 1 -Type DWord
+Gut 'Windows stellt den Standarddrucker nicht mehr selbst um'
+$std = Get-CimInstance Win32_Printer | Where-Object Default
+if ($std) { Gut "Standarddrucker jetzt: $($std.Name)" } else { Achtung 'Noch kein Standarddrucker - Drucker einrichten und als Standard setzen.' }
+
+# --- 6. Kassa im Kiosk --------------------------------------------------------
 if (-not $OhneAutostart) {
-    Schritt '5. Kassa-Autostart'
+    Schritt '6. Kassa beim Anmelden'
     $chrome = @("$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
                 "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
                 "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe") |
               Where-Object { Test-Path $_ } | Select-Object -First 1
     if ($chrome) {
-        $startup = [Environment]::GetFolderPath('Startup')
-        $lnk = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $startup 'Kassa kassenGeist.lnk'))
-        $lnk.TargetPath = $chrome
-        $lnk.Arguments = "--start-fullscreen --new-window $KassaUrl"
-        $lnk.Save()
-        Gut "Chrome oeffnet beim Anmelden $KassaUrl im Vollbild (F11 beendet Vollbild)"
+        $shell = New-Object -ComObject WScript.Shell
+        foreach ($ort in [Environment]::GetFolderPath('Startup'), [Environment]::GetFolderPath('Desktop')) {
+            $lnk = $shell.CreateShortcut((Join-Path $ort 'Kassa.lnk'))
+            $lnk.TargetPath = $chrome
+            $lnk.Arguments = "--kiosk --app=$KassaUrl"
+            $lnk.Save()
+        }
+        Gut "Kassa-Verknuepfung auf dem Desktop und im Autostart ($KassaUrl, Kiosk; beenden mit Alt+F4)"
     } else {
         Achtung 'Chrome nicht gefunden - erst Chrome installieren, dann EINRICHTEN.ps1 noch einmal starten.'
     }
 }
 
-# --- 6. Probelauf -------------------------------------------------------------
-Schritt '6. Probelauf'
+# --- 7. Probelauf -------------------------------------------------------------
+Schritt '7. Probelauf'
 schtasks /Run /TN 'Lieperts Cron' | Out-Null
-Start-Sleep -Seconds 15
-if (Test-Path "$Ziel\cron-lieperts.log") { Get-Content "$Ziel\cron-lieperts.log" -Tail 1 } else { Achtung 'Cron-Protokoll noch leer - in 5 Minuten mit PRUEFEN.ps1 nachsehen' }
-
-if (Test-Path $zugang) {
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$Ziel\DRUCK-tagesblatt-v3.ps1" -Lauf test -OhneDruck
-}
+& (Join-Path $Ziel 'HELFER-kasse-zimmerpreise.ps1') -Lauf abend -OhneDruck
+Start-Sleep -Seconds 5
+if (Test-Path "$Ziel\cron-lieperts.log") { Get-Content "$Ziel\cron-lieperts.log" -Tail 1 }
 
 Write-Host ''
-Write-Host 'Fertig. Druckprobe:  C:\Lieperts\DRUCK-tagesblatt-v3.ps1 -Lauf test' -ForegroundColor Cyan
-Write-Host 'Kontrolle jederzeit: C:\Lieperts\PRUEFEN.ps1' -ForegroundColor Cyan
+Write-Host 'Fertig. Naechste Schritte:' -ForegroundColor Cyan
+Write-Host '  C:\Lieperts\DRUCK-tagesblatt-v3.ps1 -Lauf test       Druckprobe'
+Write-Host '  C:\Lieperts\HELFER-kasse-zimmerpreise.ps1 -Erkunden   Kassa-Artikel lesen (nur lesen)'
+Write-Host '  C:\Lieperts\PRUEFEN.ps1                               Kontrolle'

@@ -1,0 +1,66 @@
+AUFTRAG an den Bau-Chat (der als einziger lieperts-reservation.php speichert)
+Von Manuel, 30.09.2026. Diesen ganzen Text in den Bau-Chat einfuegen.
+
+WORUM ES GEHT
+Der neue Kassen-PC (HP ProDesk, Windows 11) holt taeglich um 07:15 und 16:15 die
+Tagesdaten von lieperts.at, schreibt die Zimmerpreise in die Kassa (kassenGeist)
+und druckt das Tagesblatt. Das Skript am PC ist fertig. Es fehlt der Abrufpunkt
+in WordPress.
+
+ACHTUNG, bevor du baust - die Uebergabe vom 30.09. ist in zwei Punkten ueberholt:
+1. Sie sagt "neuer Block bekommt Version 30.724". 30.724 ist LIVE SCHON VERGEBEN:
+   lrv8_v30724_zugang_ok() prueft seit Wochen den Zugang zum Tagesblatt
+   (?lrv8_tagesblatt=1, Rueckfallebene format=text). Eine zweite v30.724 wuerde
+   kollidieren. Live steht die Datei bei 31.138 oder hoeher - naechste freie Nummer
+   selbst zaehlen, Praefix auf Kollision pruefen (Datei UND Snippets).
+2. Das Tagesblatt (?lrv8_tagesblatt=1, Block v30.960) gibt es schon und bleibt
+   wie es ist. Neu ist NUR der Abrufpunkt unten.
+
+WAS ZU BAUEN IST
+GET /wp-json/lieperts/v1/kassa-tagesdaten
+- Zugang: dieselbe Pruefung wie das Tagesblatt (lrv8_v30724_zugang_ok bzw. der
+  Schluessel LRV8_KASSA_KEY). Der Kassen-PC schickt ihn in der Kopfzeile
+  X-Lieperts-Kassa-Key. Bitte messen, welchen Kopfzeilen-Namen zugang_ok heute
+  liest; wenn es ein anderer ist, X-Lieperts-Kassa-Key zusaetzlich annehmen.
+  Ohne gueltigen Schluessel: 403, keine Daten.
+- Datenquelle: dieselbe wie App und Tagesblatt (lrv8_uapp_group_rooms usw.),
+  keine zweite Wahrheit.
+- Antwort (genau diese Feldnamen, das Skript am PC liest sie so):
+  {
+    "datum": "2026-10-02",
+    "drucken": true,              // Drucktag-Regel aus v30.990/v31.015 fuer JETZT
+                                  // (vor 11 Uhr Frueh-Regel Fr/Sa/So, danach Abend Mo/Di/Fr/Sa;
+                                  //  Mi/Do nur bei echter An- oder Abreise)
+    "zimmer": [
+      { "zimmer": "Salbei",        // Salbei | Muskat | Pfeffer | Rosmarin
+        "betrag": 245.50,          // Brutto in EUR, OHNE Naechtigungsabgabe und Infrastrukturbeitrag
+        "erwachsene": 2,           // Personen ab dem vollendeten 15. Lebensjahr
+        "kinder_bis_15": 0,
+        "naechte": 2,
+        "status": "confirmed",     // Rohstatus; Eigenbelegung/Sperre/Storno sollen hier erkennbar sein
+        "gast": "Nachname",
+        "hinweis": "" }
+    ]
+  }
+  Welcher Betrag "heute" gilt (Abreise-Tag? ganzer Aufenthalt?), bitte mit Manuel
+  klaeren und im STAND festhalten - das Skript schreibt genau diesen Wert.
+- Eigenbelegungen/Sperren (Feratel CLOSED, Platzhalter 179) weglassen oder mit
+  status "closed" kennzeichnen. Das Skript schreibt ohnehin nie 0, nie 179,
+  nie ueber 5.000 EUR.
+
+AUSSERDEM
+- Die alte Bruecke lrv8_v2970_* (Version 29.71, zeigt auf "api/room-prices", den es
+  in der Kassa nie gab): kassa_enabled bleibt 0, den Zeitplan
+  lrv8_v2970_kassa_auto_sync abmelden. Rauswerfen spaeter beim Aufraeumen.
+- Der Schluessel in der wp-config.php wird neu gesetzt (am Kassen-PC erzeugt,
+  Manuel traegt ihn selbst ein). Er laeuft nie ueber einen Chat.
+
+REGELN WIE IMMER
+Erst messen und mappen, Patch mit angesagter Zeichenzahl zeigen, erst nach
+Manuels "Ja, speichern" bauen. Rueckweg und Schalter (define ..._ENABLE false)
+vorher nach Drive. Danach STAND schreiben.
+
+OFFENE FRAGEN AN MANUEL (bitte vor dem Bau beantworten lassen)
+1. Ronald Glatz mit 179 EUR - echter Gast oder Eigenbelegungs-Betrag?
+2. Welche Preisvariante ist live - voller Betrag oder Betrag abzueglich Abgaben?
+3. Werden Kinder in den Buchungen getrennt erfasst?

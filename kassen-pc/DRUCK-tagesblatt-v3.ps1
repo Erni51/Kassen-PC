@@ -147,6 +147,21 @@ $sumatra = Finde @("$env:LOCALAPPDATA\SumatraPDF\SumatraPDF.exe",
 $css = '<style id="kassen-pc-druck">*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}' +
        'body,body *{color:#000!important;opacity:1!important;text-shadow:none!important}' +
        'body{font-weight:500}th,b,strong,h1,h2,h3{font-weight:700!important}</style>'
+# Zarte Hintergrundfarben (z. B. #ffd6d6 fuer Allergien) kommen auf dem Farblaser
+# fast weiss heraus. Fuer den Druck werden sie kraeftiger gemacht (gleicher Farbton,
+# doppelte Deckkraft). Reines Weiss und fast Weiss (Grautoene) bleiben unberuehrt.
+function Kraeftiger($farbe) {
+    $h = $farbe.TrimStart('#')
+    if ($h.Length -eq 3) { $h = -join ($h.ToCharArray() | ForEach-Object { "$_$_" }) }
+    $c = 0..2 | ForEach-Object { [Convert]::ToInt32($h.Substring($_ * 2, 2), 16) }
+    $spanne = ($c | Measure-Object -Maximum).Maximum - ($c | Measure-Object -Minimum).Minimum
+    if ($spanne -lt 12) { return $farbe }   # grau/weiss: lassen
+    $n = $c | ForEach-Object { [Math]::Max(0, [int](255 - (255 - $_) * 2.2)) }
+    return '#' + (($n | ForEach-Object { $_.ToString('x2') }) -join '')
+}
+$html = [regex]::Replace($html, '(background(?:-color)?\s*:\s*)(#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b)',
+    { param($m) $m.Groups[1].Value + (Kraeftiger $m.Groups[2].Value) })
+
 function Mit-Kopf($zusatz) { if ($html -match '</head>') { $html -replace '</head>', ($zusatz + '</head>') } else { $zusatz + $html } }
 $utf8 = New-Object System.Text.UTF8Encoding($true)
 $druckHtml = [IO.Path]::ChangeExtension($datei, '.druck.html')

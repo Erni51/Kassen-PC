@@ -110,7 +110,7 @@ $datei = Join-Path $Archiv ('tagesblatt-' + (Get-Date -Format 'yyyy-MM-dd') + '-
 Schreib ('Blatt erhalten, ' + $html.Length + ' Zeichen -> ' + $datei)
 
 # Archiv klein halten: aelter als 90 Tage weg
-Get-ChildItem $Archiv -Filter 'tagesblatt-*.html' |
+Get-ChildItem $Archiv -Filter 'tagesblatt-*' |
     Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-90) } |
     Remove-Item -ErrorAction SilentlyContinue
 
@@ -132,15 +132,23 @@ $sumatra = Finde @("$env:LOCALAPPDATA\SumatraPDF\SumatraPDF.exe",
 
 if ($browser -and $sumatra) {
     try {
+        # Druckfassung: Hintergruende (rote Allergie-Felder, gelbe Tischfelder, Kopfzeilen)
+        # mitdrucken und Schrift kraeftig schwarz - sonst druckt Chrome alles blass.
+        $druckHtml = [IO.Path]::ChangeExtension($datei, '.druck.html')
+        $css = '<style id="kassen-pc-druck">*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}' +
+               'body,body *{color:#000!important;opacity:1!important;text-shadow:none!important}' +
+               'body{font-weight:500}th,b,strong,h1,h2,h3{font-weight:700!important}</style>'
+        $mitCss = if ($html -match '</head>') { $html -replace '</head>', ($css + '</head>') } else { $css + $html }
+        [System.IO.File]::WriteAllText($druckHtml, $mitCss, (New-Object System.Text.UTF8Encoding($true)))
         $pdf = [IO.Path]::ChangeExtension($datei, '.pdf')
         if (Test-Path $pdf) { Remove-Item $pdf -Force }
         $prof = Join-Path $env:TEMP 'lieperts-druck-profil'
         $arg = @('--headless=new', '--disable-gpu', '--no-pdf-header-footer', "--user-data-dir=`"$prof`"",
-                 "--print-to-pdf=`"$pdf`"", ('"file:///' + ($datei -replace '\\', '/') + '"'))
+                 "--print-to-pdf=`"$pdf`"", ('"file:///' + ($druckHtml -replace '\\', '/') + '"'))
         $b = Start-Process -FilePath $browser -ArgumentList $arg -PassThru -WindowStyle Hidden
         if (-not $b.WaitForExit(90000)) { try { $b.Kill() } catch {} }
         if (-not (Test-Path $pdf) -or (Get-Item $pdf).Length -lt 1000) { throw 'PDF nicht erzeugt' }
-        $d = Start-Process -FilePath $sumatra -ArgumentList @('-print-to-default', '-silent', "`"$pdf`"") -PassThru -WindowStyle Hidden
+        $d = Start-Process -FilePath $sumatra -ArgumentList @('-print-to-default', '-print-settings', 'color', '-silent', "`"$pdf`"") -PassThru -WindowStyle Hidden
         if (-not $d.WaitForExit(120000)) { throw 'SumatraPDF nach 2 Minuten nicht fertig' }
         Schreib 'GEDRUCKT (PDF, still).'
         exit 0

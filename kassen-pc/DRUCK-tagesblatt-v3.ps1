@@ -74,11 +74,20 @@ function Hol($adresse) {
     return $wc.DownloadString($adresse)
 }
 
+# Die Webseite entscheidet selbst ueber den Drucktag (v30.990). Fuer Probe
+# und 'drucken: ja' aus den Tagesdaten: &trotzdem=1 erzwingt das Blatt.
+$Abruf = if ($Lauf -eq 'test' -or $Immer) { $Url + '&trotzdem=1' } else { $Url }
 try {
-    $html = Hol $Url
+    $html = Hol $Abruf
 } catch {
     Schreib ('BLATT NICHT ERHALTEN: ' + $_.Exception.Message)
     exit 1
+}
+
+# Webseite sagt: heute kein Druck - kein Fehler
+if ($html -match 'Kein Druck heute') {
+    Schreib ('Webseite: kein Druck heute - ' + (($html -split "`n")[1]).Trim())
+    exit 0
 }
 
 # Sicherung 1: ohne "Lieperts Tagesblatt" kein Druck

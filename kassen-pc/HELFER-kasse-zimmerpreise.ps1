@@ -272,6 +272,13 @@ if ($daten) {
     }
 }
 
+# --- Minibar: vorerst nur ins Protokoll (wohin in der Kassa, ist noch offen) --
+if ($daten) {
+    foreach ($m in @($daten.minibar)) {
+        if ($null -ne $m) { Schreib ('MINIBAR (noch nicht in die Kassa): ' + ($m | ConvertTo-Json -Compress -Depth 5)) }
+    }
+}
+
 # --- 5. Tagesblatt ------------------------------------------------------------
 if ($OhneDruck) { Schreib 'OhneDruck - Tagesblatt uebersprungen.'; exit 0 }
 $druck = Join-Path $Ordner 'DRUCK-tagesblatt-v3.ps1'

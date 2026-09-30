@@ -111,6 +111,7 @@ if ($std) { Gut "Standarddrucker jetzt: $($std.Name)" } else { Achtung 'Noch kei
 # Chrome druckt sonst in Graustufen und ohne Hintergruende: per Richtlinie Farbe,
 # Hintergrundgrafiken an, keine Kopf-/Fusszeilen (gilt fuer den Tagesblatt-Direktdruck).
 $pol = 'HKLM:\SOFTWARE\Policies\Google\Chrome'
+New-Item -Path 'HKLM:\SOFTWARE\Policies\Google' -Force | Out-Null
 New-Item -Path $pol -Force | Out-Null
 Set-ItemProperty -Path $pol -Name PrintingColorDefault -Value 'color' -Type String
 Set-ItemProperty -Path $pol -Name PrintingBackgroundGraphicsDefault -Value 'enabled' -Type String

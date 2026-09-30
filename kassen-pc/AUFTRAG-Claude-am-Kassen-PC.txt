@@ -1,0 +1,17 @@
+Du laeufst jetzt direkt am neuen Kassen-PC (Lieperts, HP ProDesk, Windows 11). Richte ihn ein.
+Anleitung und Skripte: https://github.com/Erni51/Kassen-PC (Branch claude/neuer-kassen-pc-setup-rkekre), lies zuerst README.md.
+
+1. Das Repository als ZIP holen und nach %TEMP%\kpc entpacken (Befehlszeile steht in der README, Schritt 3).
+2. Pruefen und mir melden: Windows-Benutzer, Chrome installiert?, ist http://192.168.178.200/kasse/ erreichbar?,
+   welche Drucker gibt es, welcher ist Standard? Fehlt etwas, sag mir genau, was ich tun muss.
+3. kassen-pc\EINRICHTEN.ps1 als Administrator starten. Wenn Windows fragt, bestaetige ich mit Ja.
+   Den Schluessel und die Quick-Login-URL gebe ich selbst ein - nie im Chat anzeigen, nie in eine Datei ausser
+   C:\Lieperts\kassa-zugang.txt bzw. kassa-einstellungen.txt schreiben, nie ausgeben.
+   Die Zeile fuer die wp-config.php traegt Manuel selbst ein.
+4. Danach: C:\Lieperts\PRUEFEN.ps1, dann eine Druckprobe C:\Lieperts\DRUCK-tagesblatt-v3.ps1 -Lauf test.
+5. Wenn der Abrufpunkt /wp-json/lieperts/v1/kassa-tagesdaten live ist: HELFER-kasse-zimmerpreise.ps1 -Erkunden
+   (nur lesen), mir die Zahlenfelder zeigen, PREISFELD/NETTOFELD erst nach meinem Ja eintragen.
+   SCHREIBEN=ja nur nach meinem ausdruecklichen Ja.
+
+Regeln: In der Kassa nichts anlegen, loeschen oder buchen. Keine Kennwoerter tippen oder speichern.
+Nichts an lieperts.at aendern. Vor jedem Schritt kurz sagen, was du tust. Antworte auf Deutsch, per Du, knapp.

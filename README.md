@@ -134,3 +134,7 @@ Schlüssel und Quick-Login-URL liegen **nur** am Kassen-PC (`C:\Lieperts\kassa-z
   `LRV8_V30960_FARBE` true, `LRV8_V30960_SEITE2_SW` false.
 - Offen: Aufgaben am alten Windows-Kassen-PC abschalten (sonst doppelter Druck), Schlüssel und Quick-Login
   einmal ohne Foto erneuern, Farbdichte am HP-Drucker.
+- **Minibar (30.09., 22:46 getestet):** Aufgabe „Kassa Minibar“ alle 30 Minuten. Offene Minibar-Posten aus den
+  Tagesdaten (`minibar`) kommen auf den Knopf „Minibar <Zimmer>“ (von Manuel angelegt, Gruppe ZIMMER TEST, 20 %),
+  z. B. „Minibar Pfeffer - 1*Bier“ 5,00 € (`MINIBAR_PREIS=ja`); ohne offene Posten wieder „Minibar <Zimmer>“ 0,00.
+  Der Helfer findet die vier Artikel über den Namen – Namen nicht ändern.

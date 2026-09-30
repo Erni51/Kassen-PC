@@ -133,9 +133,9 @@ $sumatra = Finde @("$env:LOCALAPPDATA\SumatraPDF\SumatraPDF.exe",
                    "${env:ProgramFiles(x86)}\SumatraPDF\SumatraPDF.exe")
 
 # Druckfassung: Hintergruende (rote Allergie-Felder, gelbe Tischfelder, Kopfzeilen)
-# mitdrucken und Schrift kraeftig schwarz - sonst druckt Chrome alles blass.
+# mitdrucken und Schrift etwas kraeftiger. Farben bleiben, wie das Plugin sie liefert.
 $css = '<style id="kassen-pc-druck">*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}' +
-       'body,body *{color:#000!important;opacity:1!important;text-shadow:none!important}' +
+       'body,body *{opacity:1!important;text-shadow:none!important}' +
        'body{font-weight:500}th,b,strong,h1,h2,h3{font-weight:700!important}</style>'
 function Mit-Kopf($zusatz) { if ($html -match '</head>') { $html -replace '</head>', ($zusatz + '</head>') } else { $zusatz + $html } }
 $utf8 = New-Object System.Text.UTF8Encoding($true)

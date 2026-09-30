@@ -4,7 +4,7 @@
 # Als Administrator starten.
 # ============================================================
 
-foreach ($n in 'Lieperts Cron', 'Kassa frueh', 'Kassa abend', 'Lieperts-Tagesblatt-1630', 'Lieperts-Tagesblatt-Frueh-0730') {
+foreach ($n in 'Lieperts Cron', 'Kassa frueh', 'Kassa abend', 'Kassa Minibar', 'Lieperts-Tagesblatt-1630', 'Lieperts-Tagesblatt-Frueh-0730') {
     schtasks /Delete /TN $n /F
 }
 $lnk = Join-Path ([Environment]::GetFolderPath('Startup')) 'Kassa.lnk'

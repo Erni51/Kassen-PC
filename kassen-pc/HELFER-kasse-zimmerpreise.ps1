@@ -205,8 +205,41 @@ if ($daten) {
         $schreiben = $false
     }
 
+    # Minibar: Eintraege aus dem Gaeste-Formular je Zimmer zu einem kurzen Text
+    # ("2x Bier, 1x Chips") zusammenfassen. Er kommt als Hinweis an den Zimmer-Knopf -
+    # gebucht wird an der Kassa mit den normalen Knoepfen (richtige USt).
+    $minibarText = @{}; $minibarSumme = @{}
+    foreach ($m in @($daten.minibar)) {
+        if ($null -eq $m) { continue }
+        $roh = $m | ConvertTo-Json -Compress -Depth 8
+        $zim = ([regex]::Match($roh, 'Salbei|Muskat|Pfeffer|Rosmarin')).Value
+        if (-not $zim) { Schreib ('MINIBAR ohne erkennbares Zimmer: ' + $roh); continue }
+        $teile = New-Object System.Collections.ArrayList
+        $script:mbSumme = 0.0; $script:mbOhnePreis = $false
+        function Sammle($o) {
+            if ($null -eq $o) { return }
+            if ($o -is [array]) { foreach ($x in $o) { Sammle $x }; return }
+            if ($o -isnot [pscustomobject]) { return }
+            $n = $null; $q = $null; $ep = $null
+            foreach ($f in 'name', 'artikel', 'label', 'produkt', 'titel', 'item') { if ($o.$f -is [string] -and $o.$f) { $n = $o.$f; break } }
+            foreach ($f in 'menge', 'anzahl', 'qty', 'quantity', 'stueck') { if ($null -ne $o.$f -and "$($o.$f)" -match '^\d+$') { $q = [int]$o.$f; break } }
+            foreach ($f in 'preis', 'einzelpreis', 'price', 'betrag') { if ($null -ne $o.$f -and "$($o.$f)" -match '^\d+([.,]\d+)?$') { $ep = [double]("$($o.$f)" -replace ',', '.'); break } }
+            if ($n -and $q -gt 0 -and $n -notmatch '^(Salbei|Muskat|Pfeffer|Rosmarin)$') {
+                $null = $teile.Add("${q}x $n")
+                if ($null -ne $ep) { $script:mbSumme += $q * $ep } else { $script:mbOhnePreis = $true }
+            }
+            foreach ($pr in $o.PSObject.Properties) { if ($pr.Value -is [array] -or $pr.Value -is [pscustomobject]) { Sammle $pr.Value } }
+        }
+        Sammle $m
+        $txt = if ($teile.Count -gt 0) { ($teile -join ', ') } else { 'siehe Team-Board' }
+        $minibarText[$zim] = if ($minibarText[$zim]) { $minibarText[$zim] + ', ' + $txt } else { $txt }
+        if ($script:mbOhnePreis) { $minibarSumme[$zim] = -1 } elseif (-not $minibarSumme.ContainsKey($zim)) { $minibarSumme[$zim] = $script:mbSumme } elseif ($minibarSumme[$zim] -ge 0) { $minibarSumme[$zim] += $script:mbSumme }
+        Schreib ("MINIBAR ${zim}: $txt")
+    }
+
     # Plan aufstellen und pruefen, bevor irgendetwas geschrieben wird
     $plan = New-Object System.Collections.ArrayList
+    $artJe = @{}
     $abbruch = $false
     foreach ($z in @($daten.zimmer)) {
         $zn = [string]$z.zimmer
@@ -234,10 +267,25 @@ if ($daten) {
             $ust = [double]$k.ust
             $null = $plan.Add([pscustomobject]@{ Zimmer = $zn; Id = $id; Name = $name; Brutto = [math]::Round($betrag, 2); Netto = [math]::Round($betrag / (1 + $ust / 100), 2) })
         }
+        $artJe[$zn] = $art
         if ($abbruch) { break }
     }
     if ($abbruch) { $plan.Clear() }
-    foreach ($p in $plan) { Schreib ("  plan: {0} -> {1:N2} EUR (netto {2:N2}) | {3}" -f $p.Id.Substring(18), $p.Brutto, $p.Netto, $p.Name) }
+    # Minibar-Knopf "Minibar <Zimmer>" (von Manuel in der Kassa angelegt; Kennung wird
+    # beim Schreiben ueber den Namen gesucht). Offene Minibar -> sofort Liste (+ Summe),
+    # sonst leeren, wenn das Zimmer heute ohnehin beschrieben/zurueckgesetzt wird.
+    if (-not $abbruch) {
+        foreach ($zn in 'Salbei', 'Muskat', 'Pfeffer', 'Rosmarin') {
+            $mbName = 'Minibar ' + $zn; $mbPreis = 0.0
+            if ($minibarText[$zn]) {
+                $mbName = $mbName + ' - ' + ($minibarText[$zn] -replace 'x ', '*')
+                if ($mbName.Length -gt 120) { $mbName = $mbName.Substring(0, 117) + '...' }
+                if ($einst['MINIBAR_PREIS'] -eq 'ja' -and $minibarSumme[$zn] -gt 0) { $mbPreis = [math]::Round($minibarSumme[$zn], 2) }
+            } elseif (-not $artJe[$zn]) { continue }
+            $null = $plan.Add([pscustomobject]@{ Zimmer = $zn; Id = ''; Suche = 'Minibar ' + $zn; Name = $mbName; Brutto = $mbPreis; Netto = $null })
+        }
+    }
+    foreach ($p in $plan) { Schreib ("  plan: {0} -> {1:N2} EUR | {2}" -f $(if ($p.Id) { $p.Id.Substring(18) } else { 'Minibar' }), $p.Brutto, $p.Name) }
 
     if ($plan.Count -gt 0 -and -not $schreiben) {
         Schreib 'Probelauf (SCHREIBEN=nein oder Trockenlauf) - nichts in die Kassa geschrieben.'
@@ -246,14 +294,33 @@ if ($daten) {
         $ok = Mit-Wiederholung { Kassa-Anmelden; $true } 'Kassa-Anmeldung'
         if (-not $ok) { Schreib 'Kassa nicht erreichbar oder Quick-Login abgelaufen - keine Preise.' }
         else {
+            $mbIds = @{}
+            if (@($plan | Where-Object { -not $_.Id }).Count -gt 0) {
+                try {
+                    $r = Invoke-WebRequest -Uri "$Kassa/api/Product?limit=15000" -UseBasicParsing -WebSession $script:Sitzung -TimeoutSec 60
+                    $alle = [System.Text.Encoding]::UTF8.GetString($r.RawContentStream.ToArray()) | ConvertFrom-Json
+                    if ($alle -isnot [array]) { foreach ($f in 'items', 'data', 'products', 'rows') { if ($alle.$f) { $alle = $alle.$f; break } } }
+                    foreach ($zz in 'Salbei', 'Muskat', 'Pfeffer', 'Rosmarin') {
+                        $treffer = @($alle | Where-Object { [string]$_.name -match ('^Minibar ' + $zz + '(\s|$)') })
+                        if ($treffer.Count -eq 1) { $mbIds['Minibar ' + $zz] = [string]$treffer[0]._id }
+                        elseif ($treffer.Count -gt 1) { Schreib "Minibar ${zz}: $($treffer.Count) Artikel mit diesem Namen - keiner beschrieben." }
+                    }
+                } catch { Schreib ('Minibar-Artikel nicht gefunden: ' + $_.Exception.Message) }
+            }
             foreach ($p in $plan) {
+                if (-not $p.Id) {
+                    if ($mbIds[$p.Suche]) { $p.Id = $mbIds[$p.Suche] } else { Schreib "$($p.Suche): kein Artikel in der Kassa (bitte anlegen) - uebersprungen."; continue }
+                }
                 try {
                     $obj = (Artikel-Holen $p.Id) | ConvertFrom-Json
                     foreach ($f in @($preisFeld, $nettoFeld, $nameFeld) | Where-Object { $_ }) {
                         if (-not ($obj.PSObject.Properties.Name -contains $f)) { throw "Feld '$f' gibt es im Artikel nicht" }
                     }
                     $obj.$preisFeld = $p.Brutto
-                    if ($nettoFeld) { $obj.$nettoFeld = $p.Netto }
+                    if ($nettoFeld) {
+                        $netto = if ($null -ne $p.Netto) { $p.Netto } else { [math]::Round($p.Brutto / (1 + [double]$obj.taxRate / 100), 2) }
+                        $obj.$nettoFeld = $netto
+                    }
                     $obj.$nameFeld = $p.Name
                     $body = [System.Text.Encoding]::UTF8.GetBytes(($obj | ConvertTo-Json -Depth 20 -Compress))
                     $null = Invoke-WebRequest -Uri "$Kassa/api/Product/$($p.Id)`?limit=15000" -Method Post -Body $body `
@@ -269,13 +336,6 @@ if ($daten) {
                 }
             }
         }
-    }
-}
-
-# --- Minibar: vorerst nur ins Protokoll (wohin in der Kassa, ist noch offen) --
-if ($daten) {
-    foreach ($m in @($daten.minibar)) {
-        if ($null -ne $m) { Schreib ('MINIBAR (noch nicht in die Kassa): ' + ($m | ConvertTo-Json -Compress -Depth 5)) }
     }
 }
 

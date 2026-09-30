@@ -6,7 +6,7 @@
 $Ziel = 'C:\Lieperts'
 
 Write-Host '=== Geplante Aufgaben' -ForegroundColor Cyan
-foreach ($n in 'Lieperts Cron', 'Kassa frueh', 'Kassa abend') {
+foreach ($n in 'Lieperts Cron', 'Kassa frueh', 'Kassa abend', 'Kassa Minibar') {
     try {
         $i = Get-ScheduledTaskInfo -TaskName $n -ErrorAction Stop
         $farbe = if ($i.LastTaskResult -eq 0 -or $i.LastTaskResult -eq 267011) { 'Green' } else { 'Yellow' }

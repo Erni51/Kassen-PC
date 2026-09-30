@@ -74,7 +74,12 @@ schtasks /Create /F /TN 'Kassa abend' /SC DAILY /ST 16:15 `
     /TR "$ps $Ziel\HELFER-kasse-zimmerpreise.ps1 -Lauf abend" | Out-Null
 if ($LASTEXITCODE -eq 0) { Gut 'Kassa abend (16:15)' } else { Achtung 'Kassa abend NICHT angelegt' }
 
-foreach ($n in 'Kassa frueh', 'Kassa abend', 'Lieperts Cron') {
+# Minibar/Preise zwischendurch: alle 30 Minuten, ohne Druck
+schtasks /Create /F /TN 'Kassa Minibar' /SC MINUTE /MO 30 `
+    /TR "$ps $Ziel\HELFER-kasse-zimmerpreise.ps1 -Lauf abend -OhneDruck" | Out-Null
+if ($LASTEXITCODE -eq 0) { Gut 'Kassa Minibar (alle 30 Minuten, ohne Druck)' } else { Achtung 'Kassa Minibar NICHT angelegt' }
+
+foreach ($n in 'Kassa frueh', 'Kassa abend', 'Kassa Minibar', 'Lieperts Cron') {
     try {
         $t = Get-ScheduledTask -TaskName $n -ErrorAction Stop
         $t.Settings.StartWhenAvailable = $true          # verpassten Lauf nachholen

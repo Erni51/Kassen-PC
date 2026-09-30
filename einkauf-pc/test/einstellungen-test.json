@@ -1,0 +1,4 @@
+{ "port": 8788, "schluessel": "test-schluessel-123456", "chrome": "/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
+  "profil": "/tmp/claude-0/-home-user-Kassen-PC/dd6c855f-bf30-5472-9e63-2bc1e631cc0f/scratchpad/chrome-test", "chromePort": 9333,
+  "kopflos": true, "shops": ["testshop"], "shopOrdner": "shops", "still": true,
+  "protokoll": "/tmp/claude-0/-home-user-Kassen-PC/dd6c855f-bf30-5472-9e63-2bc1e631cc0f/scratchpad/einkauf-test.log" }

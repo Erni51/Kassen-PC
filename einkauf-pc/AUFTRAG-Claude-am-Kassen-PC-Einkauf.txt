@@ -1,0 +1,34 @@
+Du laeufst direkt am Kassen-PC (Lieperts, HP ProDesk, Windows 11). Richte "Lieperts Einkauf (live)" ein
+und mach die Transgourmet-Anbindung fertig.
+Anleitung und Programm: https://github.com/Erni51/Kassen-PC (Branch claude/price-comparison-module-xqjsdz),
+Ordner einkauf-pc, lies zuerst einkauf-pc/README.md.
+
+1. Das Repository als ZIP holen und nach %TEMP%\kpc-einkauf entpacken:
+   https://github.com/Erni51/Kassen-PC/archive/refs/heads/claude/price-comparison-module-xqjsdz.zip
+2. einkauf-pc\START-EINKAUF.cmd starten (fragt nach Administrator - ich bestaetige mit Ja).
+   Den Handy-Link, den es am Ende zeigt, NIE im Chat ausgeben und nirgends hinschreiben ausser dort, wo das
+   Skript ihn selbst ablegt (C:\Lieperts\einkauf\handy-link.txt). Ich oeffne ihn selbst am Handy.
+3. Im Einkaufs-Chrome (eigenes Fenster, Profil C:\Lieperts\chrome-einkauf) melde ICH mich bei Transgourmet an.
+   Du tippst kein Passwort. Sag mir, wenn ich dran bin, und warte.
+4. Erkunden (nur lesen):  cd C:\Lieperts\einkauf  und  node\node.exe erkunden.js transgourmet balsamico --sekunden 120
+   In der Zeit im Einkaufs-Chrome: nach "balsamico" suchen, einen Artikel oeffnen, die Schnellerfassung
+   (https://shop.transgourmet.at/ctx:L2NhdGFsb2cy/quickadd) ansehen. NICHT bestellen, nichts in den Warenkorb.
+5. Aus erkundet\transgourmet-*\ (anfragen.json, seite.html) C:\Lieperts\einkauf\shops\transgourmet.js ausfuellen:
+   Such-Adresse mit {q}, Selektoren fuer Kachel, Name, Artikelnummer, Preis, Grundpreis ("1 l = ..."), Inhalt,
+   Einheit, Link, Bild; Anmelde-Merkmale (nur sichtbar wenn angemeldet / Anmeldemaske); Warenkorb-Weg
+   (Schnellerfassung: Feld Nummer, Feld Menge, Knopf, Bestaetigung - oder Produktseite).
+   Liefert der Shop die Treffer als JSON (anfragen.json), darf suche() stattdessen diese Schnittstelle im Tab
+   mit fetch(..., {credentials:'include'}) abfragen - dann eine eigene suche-Funktion in transgourmet.js
+   schreiben, die dieselben Felder liefert wie allgemein.js. Klaeren und im Kopf der Datei festhalten:
+   sind die Preise netto? gilt der Preis je Stueck/Flasche oder je Karton?
+6. Pruefen, bevor fertig: true gesetzt wird:
+   - Anmeldung: http://127.0.0.1:8787/api/status?neu=1 (Kopfzeile X-Schluessel aus einstellungen.json) -> angemeldet true
+   - Suche "balsamico": mindestens 5 Treffer, Preise stimmen mit dem Shop ueberein (3 Stichproben vergleichen),
+     Quality Balsamico Glace 500 ml muss dabei sein (Katalog 17.09.: 7,70 EUR netto, 15,40 EUR/l).
+   - Warenkorb: EIN Artikel mit Menge 1 ueber POST /api/korb in den Warenkorb, im Shop nachsehen, ob er drin
+     ist, danach im Shop wieder herausnehmen. Nie "Bestellen"/"Bestellung absenden" druecken.
+   Dann fertig: true, Programm neu starten (Aufgabe "Lieperts Einkauf" beenden und starten), mir berichten.
+7. Die geaenderte shops\transgourmet.js mir zeigen (ohne Schluessel), damit sie ins Repository kommt.
+
+Regeln: Keine Kennwoerter tippen oder speichern. Nichts bestellen, nichts absenden. Kassa und die Kassa-Aufgaben
+nicht anfassen. Vor jedem Schritt kurz sagen, was du tust. Antworte auf Deutsch, per Du, knapp.

@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#192841">
+<title>Einkauf live</title>
+<style>
+:root{
+  --navy:#192841;--gold:#c59a38;--gold-deep:#a37f28;
+  --grund:#faf6ee;--flaeche:#fff;--flaeche-2:#f5efe0;--text:#192841;--leise:#44506b;
+  --rand:#e7dcc4;--rand-stark:#d8c9a6;--akzent:#c59a38;--akzent-text:#192841;--warn:#a0442c;--gut:#1d6b4e;
+}
+@media (prefers-color-scheme: dark){
+  :root{--grund:#111c2e;--flaeche:#1b2942;--flaeche-2:#223154;--text:#f3ece0;--leise:#a9b4cb;
+    --rand:#2f3f5f;--rand-stark:#41537a;--akzent:#dbb055;--akzent-text:#111c2e;--warn:#e08063;--gut:#5fc79b}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--grund);color:var(--text);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+button,input{font:inherit;color:inherit}
+.kopf{position:sticky;top:0;z-index:10;background:var(--navy);color:#f3ece0;border-bottom:2px solid var(--gold);padding:10px 16px calc(10px) 16px;padding-top:calc(env(safe-area-inset-top,0px) + 10px)}
+.kopf h1{margin:0;font:700 18px Georgia,serif;color:#fff}
+.kopf small{display:block;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+main{max-width:760px;margin:0 auto;padding:14px 16px 90px}
+.shops{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 6px}
+.chip{display:inline-flex;align-items:center;gap:5px;border:1.5px solid var(--rand-stark);background:var(--flaeche);color:var(--leise);border-radius:999px;padding:5px 11px;font-size:12.5px;font-weight:600;cursor:pointer}
+.chip.ja{border-color:var(--gut);color:var(--gut)}
+.chip.nein{background:var(--warn);border-color:var(--warn);color:#fff}
+.chip.aus{opacity:.55;cursor:default}
+.stand{font-size:11.5px;color:var(--leise);margin:0 0 12px}
+form{display:flex;gap:8px;margin:0 0 14px}
+.feld{flex:1;min-width:0;background:var(--flaeche);border:1.5px solid var(--rand-stark);border-radius:10px;padding:11px 12px;font-size:16px}
+.feld:focus{outline:2px solid var(--akzent);outline-offset:-1px}
+.knopf{border:1.5px solid var(--akzent);background:var(--akzent);color:var(--akzent-text);border-radius:10px;padding:10px 16px;font-weight:700;cursor:pointer}
+.knopf.leise{background:var(--flaeche);border-color:var(--rand-stark);color:var(--text);font-weight:600}
+.knopf:disabled{opacity:.5}
+.hinweis{font-size:13px;color:var(--leise);margin:0 0 12px}
+.fehler{color:var(--warn);font-size:13px;margin:0 0 10px}
+.tipp{background:color-mix(in srgb,var(--akzent) 16%,var(--flaeche));border:2px solid var(--akzent);border-radius:14px;padding:12px 13px;margin:0 0 14px}
+.tipp .ueber{font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-deep)}
+.eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--leise);margin:16px 0 8px}
+.karte{display:grid;grid-template-columns:auto 1fr auto;grid-template-areas:"bild mitte mitte" "bild preis plus";column-gap:10px;row-gap:6px;align-items:center;background:var(--flaeche);border:1.5px solid var(--rand);border-radius:12px;padding:10px 12px;margin:0 0 8px}
+.karte .bild{grid-area:bild;align-self:start}.karte .mitte{grid-area:mitte}.karte .preis{grid-area:preis;text-align:left}.karte .plus{grid-area:plus;flex-direction:row;gap:8px}
+.tipp .karte{background:transparent;border:none;padding:6px 0 0;margin:0}
+.bild{flex:none;width:44px;height:44px;border-radius:8px;object-fit:contain;background:var(--flaeche-2);border:1px solid var(--rand)}
+.mitte{flex:1;min-width:0}
+.name{font-weight:600;font-size:14.5px;line-height:1.25;word-wrap:break-word}
+.klein{font-size:11.5px;color:var(--leise);margin-top:2px}
+.preis{font-family:ui-monospace,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+.preis b{display:block;font-size:15px}
+.preis span{display:block;font-size:10.5px;color:var(--leise)}
+.tipp .preis b{color:var(--gold-deep)}
+.plus{flex:none;display:flex;flex-direction:column;align-items:center;gap:4px}
+.plus button{width:42px;height:38px;border-radius:9px;border:1.5px solid var(--akzent);background:var(--akzent);color:var(--akzent-text);font-size:20px;font-weight:700;cursor:pointer}
+.plus button.ok{background:var(--gut);border-color:var(--gut);color:#fff}
+.plus button.nein{background:var(--warn);border-color:var(--warn);color:#fff}
+.menge{display:flex;align-items:center;gap:3px;font-size:12px}
+.menge button{width:24px;height:24px;border-radius:6px;border:1px solid var(--rand-stark);background:var(--grund);font-size:14px;line-height:1;padding:0;cursor:pointer}
+.menge b{min-width:16px;text-align:center}
+.shopname{display:inline-block;font-size:10.5px;font-weight:700;border-radius:999px;padding:1px 8px;background:var(--navy);color:#fff;margin-right:4px}
+.laeuft{display:flex;gap:9px;align-items:center;background:var(--flaeche-2);border:1px solid var(--rand);border-radius:10px;padding:10px 12px;font-size:13px;margin:0 0 12px}
+.punkt{width:9px;height:9px;border-radius:50%;background:var(--akzent);animation:p 1.2s infinite}
+@keyframes p{50%{opacity:.3}}
+.toast{position:fixed;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);max-width:520px;margin:0 auto;background:var(--navy);color:#f3ece0;border-radius:12px;padding:11px 14px;font-size:13.5px;box-shadow:0 8px 28px rgba(0,0,0,.3);opacity:0;transform:translateY(8px);transition:.18s;pointer-events:none}
+.toast.an{opacity:1;transform:none}
+</style>
+</head>
+<body>
+<header class="kopf"><h1>Einkauf <small>Lieperts · live aus den Shops</small></h1></header>
+<main>
+  <div class="shops" id="shops"></div>
+  <p class="stand" id="stand">Verbinde mit dem Kassen-PC…</p>
+  <form id="suchForm">
+    <input class="feld" id="such" type="search" placeholder="z. B. Balsamico Glace" autocomplete="off" enterkeyhint="search">
+    <button class="knopf" id="suchKnopf">Suchen</button>
+  </form>
+  <div id="inhalt"><p class="hinweis">Gesucht wird live in allen Shops, in denen der Kassen-PC angemeldet ist. Verglichen wird je Kilo bzw. Liter, der Günstigste steht oben. Das Plus legt direkt in den Warenkorb des Shops — bestellen tust du im Shop selbst.</p></div>
+</main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+(function(){
+  "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+  var K = "";
+  try {
+    var u = new URL(location.href), k = u.searchParams.get("k");
+    if (k){ localStorage.setItem("einkauf-k", k); u.searchParams.delete("k"); history.replaceState(null, "", u.pathname); }
+    K = localStorage.getItem("einkauf-k") || "";
+  } catch(e){}
+
+  function esc(s){ var d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; }
+  function geld(n){ return (n == null || !isFinite(n)) ? "–" : n.toLocaleString("de-AT", {minimumFractionDigits:2, maximumFractionDigits:2}) + " €"; }
+  function inhaltText(i){ if (!i) return ""; return i.v < 1 ? Math.round(i.v * 1000) + (i.e === "kg" ? " g" : " ml") : String(i.v).replace(".", ",") + " " + i.e; }
+  var tt = null;
+  function toast(h){ var t = $("toast"); t.innerHTML = h; t.classList.add("an"); clearTimeout(tt); tt = setTimeout(function(){ t.classList.remove("an"); }, 3500); }
+
+  function api(pfad, daten){
+    return fetch(pfad, {
+      method: daten ? "POST" : "GET",
+      headers: Object.assign({"X-Schluessel": K}, daten ? {"Content-Type": "application/json"} : {}),
+      body: daten ? JSON.stringify(daten) : undefined
+    }).then(function(r){
+      return r.json().catch(function(){ return {}; }).then(function(d){
+        if (r.status === 401) throw new Error("Schlüssel fehlt — öffne einmal den Link mit ?k=… vom Kassen-PC.");
+        if (!r.ok) throw new Error(d.fehler || ("Fehler " + r.status));
+        return d;
+      });
+    });
+  }
+
+  /* ---- Anmelde-Stand ---- */
+  var shops = [];
+  function shopsZeichnen(){
+    $("shops").innerHTML = shops.map(function(s){
+      var art = !s.fertig ? "aus" : s.angemeldet === true ? "ja" : s.angemeldet === false ? "nein" : "";
+      var z = !s.fertig ? "· " : s.angemeldet === true ? "✓ " : s.angemeldet === false ? "✗ " : "? ";
+      return '<button class="chip ' + art + '" data-shop="' + esc(s.id) + '" title="' + esc(s.hinweis || "") + '">' + z + esc(s.name) + '</button>';
+    }).join("");
+    var nein = shops.filter(function(s){ return s.fertig && s.angemeldet === false; });
+    var aus = shops.filter(function(s){ return !s.fertig; });
+    var zeit = shops.map(function(s){ return s.geprueft; }).filter(Boolean).sort().pop();
+    $("stand").textContent =
+      (nein.length ? "Abgemeldet: " + nein.map(function(s){ return s.name; }).join(", ") + " — antippen, dann am Kassen-PC anmelden. " : "") +
+      (aus.length ? aus.map(function(s){ return s.name; }).join(", ") + ": noch nicht eingerichtet. " : "") +
+      (zeit ? "Geprüft " + new Date(zeit).toLocaleTimeString("de-AT", {hour:"2-digit", minute:"2-digit"}) + "." : "");
+  }
+  function statusHolen(neu){
+    return api("/api/status" + (neu ? "?neu=1" : "")).then(function(d){ shops = d.shops || []; shopsZeichnen(); })
+      .catch(function(e){ $("stand").textContent = e.message; });
+  }
+  $("shops").addEventListener("click", function(ev){
+    var c = ev.target.closest("[data-shop]");
+    if (!c) return;
+    var s = shops.filter(function(x){ return x.id === c.getAttribute("data-shop"); })[0];
+    if (!s || !s.fertig) return;
+    if (s.angemeldet === false){
+      api("/api/anmelden", {shop: s.id}).then(function(){
+        toast("<b>" + esc(s.name) + "</b> ist am Kassen-PC jetzt vorne. Dort anmelden, dann hier kurz warten.");
+        setTimeout(function(){ statusHolen(true); }, 60000);
+      }).catch(function(e){ toast(esc(e.message)); });
+    } else {
+      toast("Prüfe die Anmeldungen…");
+      statusHolen(true);
+    }
+  });
+
+  /* ---- Suche ---- */
+  var treffer = [], mengen = {};
+  function karte(t, i){
+    var v = t.vergleich;
+    var gross = v ? geld(v.wert) + "/" + (v.einheit === "Stk" ? "Stk" : v.einheit) : "kein Preis";
+    var klein = t.preis ? geld(t.preis) + (t.inhalt ? " je Stk à " + inhaltText(t.inhalt) : (t.vkeh ? " je " + esc(t.vkeh) : "")) + (t.netto ? " netto" : "") : "";
+    var m = mengen[i] || 1;
+    return '<div class="karte">' +
+      (t.bild ? '<img class="bild" src="' + esc(t.bild) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.visibility=\'hidden\'">' : "") +
+      '<div class="mitte"><div class="name">' + esc(t.name) + '</div>' +
+        '<div class="klein"><span class="shopname">' + esc(t.shopName) + '</span>' + (t.artnr ? "Nr. " + esc(t.artnr) : "") +
+        (v && v.quelle === "shop" ? " · Grundpreis laut Shop" : "") + '</div></div>' +
+      '<div class="preis"><b>' + gross + '</b><span>' + klein + '</span></div>' +
+      '<div class="plus"><button type="button" data-plus="' + i + '" aria-label="In den Warenkorb bei ' + esc(t.shopName) + '">+</button>' +
+        '<div class="menge"><button type="button" data-m="' + i + '" data-d="-1" aria-label="weniger">−</button><b>' + m + '</b><button type="button" data-m="' + i + '" data-d="1" aria-label="mehr">+</button></div></div>' +
+    '</div>';
+  }
+  function zeichnen(d){
+    treffer = d.treffer || []; mengen = {};
+    var h = "";
+    Object.keys(d.fehler || {}).forEach(function(id){
+      h += '<p class="fehler">' + esc(id) + ': ' + esc(d.fehler[id]) + '</p>';
+    });
+    if (d.nichtEingerichtet && d.nichtEingerichtet.length){
+      h += '<p class="hinweis">Noch nicht eingerichtet: ' + esc(d.nichtEingerichtet.join(", ")) + '.</p>';
+    }
+    if (!treffer.length){
+      $("inhalt").innerHTML = h + '<p class="hinweis">Nichts gefunden zu „' + esc(d.begriff) + '“.</p>';
+      return;
+    }
+    var erste = treffer[0], gleiche = treffer.filter(function(t){ return t.vergleich && t.vergleich.einheit === d.erst; });
+    if (erste.vergleich && erste.vergleich.einheit === d.erst && gleiche.length > 1){
+      var teuer = gleiche[gleiche.length - 1];
+      h += '<div class="tipp"><div class="ueber">Am günstigsten · bei ' + esc(erste.shopName) + '</div>' + karte(erste, 0) +
+        '<p class="klein">' + gleiche.length + ' Artikel verglichen, je ' + d.erst + ' — ' +
+        Math.round((1 - erste.vergleich.wert / teuer.vergleich.wert) * 100) + ' % billiger als der teuerste.</p></div>';
+    }
+    var letzte = "";
+    treffer.forEach(function(t, i){
+      var gruppe = !t.vergleich ? "Ohne Preis" : t.vergleich.einheit === "Stk" ? "Je Stück — kein Inhalt angegeben" : "Je " + (t.vergleich.einheit === "kg" ? "Kilo" : "Liter") + " — günstigster zuerst";
+      if (gruppe !== letzte){ h += '<p class="eyebrow">' + gruppe + '</p>'; letzte = gruppe; }
+      h += karte(t, i);
+    });
+    $("inhalt").innerHTML = h;
+  }
+  $("suchForm").addEventListener("submit", function(ev){
+    ev.preventDefault();
+    var q = $("such").value.trim();
+    if (q.length < 2) return;
+    $("such").blur();
+    $("suchKnopf").disabled = true;
+    $("inhalt").innerHTML = '<div class="laeuft"><span class="punkt"></span>Suche „' + esc(q) + '“ in den Shops… das dauert ein paar Sekunden.</div>';
+    api("/api/suche?q=" + encodeURIComponent(q)).then(zeichnen)
+      .catch(function(e){ $("inhalt").innerHTML = '<p class="fehler">' + esc(e.message) + '</p>'; })
+      .then(function(){ $("suchKnopf").disabled = false; });
+  });
+
+  /* ---- Plus: in den echten Shop-Warenkorb ---- */
+  $("inhalt").addEventListener("click", function(ev){
+    var mb = ev.target.closest("[data-m]");
+    if (mb){
+      var j = mb.getAttribute("data-m");
+      mengen[j] = Math.max(1, Math.min(99, (mengen[j] || 1) + Number(mb.getAttribute("data-d"))));
+      document.querySelectorAll('[data-m="' + j + '"]').forEach(function(b){ b.parentNode.querySelector("b").textContent = mengen[j]; });
+      return;
+    }
+    var pb = ev.target.closest("[data-plus]");
+    if (!pb || pb.disabled) return;
+    var i = pb.getAttribute("data-plus"), t = treffer[i], m = mengen[i] || 1;
+    var knoepfe = document.querySelectorAll('[data-plus="' + i + '"]');
+    knoepfe.forEach(function(b){ b.disabled = true; b.textContent = "…"; });
+    api("/api/korb", {shop: t.shop, artnr: t.artnr, url: t.url, name: t.name, menge: m}).then(function(r){
+      knoepfe.forEach(function(b){ b.className = r.ok ? "ok" : "nein"; b.textContent = r.ok ? "✓" : "!"; });
+      toast(r.ok ? "<b>" + m + " × </b>" + esc(t.name) + "<br>liegt im " + esc(t.shopName) + "-Warenkorb."
+                 : "<b>Nicht geklappt:</b> " + esc(r.hinweis || "unbekannt"));
+    }).catch(function(e){
+      knoepfe.forEach(function(b){ b.className = "nein"; b.textContent = "!"; });
+      toast("<b>Nicht geklappt:</b> " + esc(e.message));
+    }).then(function(){
+      setTimeout(function(){ knoepfe.forEach(function(b){ b.disabled = false; b.className = ""; b.textContent = "+"; }); }, 2500);
+    });
+  });
+
+  statusHolen(false);
+  setInterval(function(){ statusHolen(false); }, 60000);
+})();
+</script>
+</body>
+</html>

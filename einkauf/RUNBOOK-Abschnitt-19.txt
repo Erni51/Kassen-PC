@@ -1,0 +1,97 @@
+
+
+=====================================================================
+19 SHOP-WARENKORB, ANMELDE-CHECK, MARKENSUCHE  (30.09.2026, App-Version 44,
+   Auftrag Manuel)
+=====================================================================
+Manuel will: beim Öffnen der App prüfen, ob er überall angemeldet ist;
+ein Plus soll die Ware in den Warenkorb des jeweiligen Shops legen;
+bestellen (abschicken) tut er selbst. Die App kommt an keinen Shop heran
+(Artefakt-Seite, fremde Server, Anmeldung in Chrome). Sie legt drei
+Aufträge ab, die die stündliche Wache (Abschnitt 9) am Rechner in Chrome
+abarbeitet. Reihenfolge je Wachlauf: 19a, 19b, 19c, danach auffrischen.
+Jeder Auftrag: lesen, status "offen"? sonst überspringen; status auf
+"laeuft" mit if_version (Konflikt = anderer Lauf hat ihn -> überspringen);
+am Ende status "fertig" (oder "fehler" mit Grund in bericht).
+Nie "Bestellen"/"Bestellung absenden" drücken. Kein Captcha, kein
+Konto anlegen, kein Passwort TIPPEN.
+
+19a ANMELDE-CHECK  (auftrag/anmeldung)
+  {status, angefordert, geprueft, bericht,
+   ergebnis:{<shop>:{angemeldet:true|false, hinweis}}}
+  Shops und Seiten:
+    transgourmet  https://shop.transgourmet.at/
+    rungis        https://r-express.com/account/login
+    rs            https://www.rs-gourmets.at/kundenkonto/konto
+    hollu         https://www.hollu.shop/
+    hogast        https://smart.myhogast.com/   (Prüfung wie Abschnitt 2)
+  Je Shop die Seite öffnen: Kundenkonto/Name sichtbar = angemeldet.
+  Anmeldemaske sichtbar: EINMAL anmelden, aber nur, wenn Chrome die
+  gespeicherten Zugangsdaten selbst einsetzt (Autofill) — dann nur auf
+  "Anmelden" klicken, Häkchen "angemeldet bleiben" setzen, wo es eins gibt.
+  Kein Autofill, Captcha, SMS-/Mail-Code: nicht weiter, angemeldet=false,
+  hinweis sagt warum ("kein gespeichertes Passwort", "Captcha" …).
+  Diese Freigabe (Autofill-Anmeldung) gilt NUR für die fünf Shops oben.
+  Webmail bleibt: nie anmelden (Abschnitt 0).
+  Am Ende: geprueft=<ISO>, bericht = ein Satz ("4 von 5 angemeldet,
+  Rungis: Captcha").
+
+19b SHOP-WARENKORB  (auftrag/shopkorb)
+  {status, angefordert, fortschritt, bericht,
+   shops:{<shop>:[{key, lief, artikelId, artnr, hgIntern, name,
+                    bezeichnung, menge, vkeh, gebinde, preis}]},
+   weg:[{shop, key, artnr, name}],
+   ergebnis:{<shop>:{stand, angemeldet, hinweis,
+                      zeilen:{<key>:{status:"drin"|"fehlt", menge, hinweis}}}}}
+  - menge = Anzahl BESTELLEINHEITEN (so viele Mal "in den Warenkorb"),
+    nicht kg/l. Bei gebinde 0,5 und einheit l sind 2 = zwei Flaschen.
+  - Die Liste je Shop ist der GEWÜNSCHTE STAND: Menge im Shop-Warenkorb
+    auf genau diesen Wert SETZEN (nicht dazuzählen). So darf ein Lauf
+    beliebig oft wiederholt werden.
+  - weg[]: diese Positionen aus dem Shop-Warenkorb nehmen (Manuel hat sie in
+    der App auf 0 gesetzt). Positionen im Shop-Warenkorb, die weder in
+    shops noch in weg stehen, NICHT anfassen — die hat Manuel selbst gelegt.
+  - Artikel finden: zuerst über artnr (Schnellerfassung
+    shop.transgourmet.at/ctx:L2NhdGFsb2cy/quickadd bzw.
+    r-express.com/b2bfastorder, sonst Shopsuche nach der Nummer).
+    hgIntern=true heißt: artnr ist HOGAST-intern, NICHT die Shopnummer ->
+    nach name/bezeichnung suchen und nur nehmen, wenn Gebinde und Inhalt
+    eindeutig passen. Unsicher -> status "fehlt", hinweis nennt den
+    Kandidaten. Nichts raten.
+  - Einheit prüfen: wenn der Shop nur Kartons verkauft, wo vkeh ein Stück
+    meint (oder umgekehrt), NICHT umrechnen, sondern "fehlt" mit hinweis.
+  - Shop abgemeldet (19a schlägt fehl): ergebnis[shop].angemeldet=false,
+    Zeilen unangetastet lassen, status am Ende trotzdem "fertig".
+  - Nach jedem Shop fortschritt schreiben und ergebnis[shop] mit stand=<ISO>.
+  - Hat die App den Auftrag während des Laufs neu geschrieben
+    (if_version-Konflikt), neu lesen und die neue Liste nehmen.
+  - Ohne Onlineshop (Eurogast, Nannerl, Supermärkte, Metro …) schreibt die
+    App gar nichts in shopkorb; Manuel bestellt dort selbst.
+
+19c MARKENSUCHE  (auftrag/suchlauf, {begriff, status, angefordert})
+  Wie bisher (Shop-Aufgabe am Montag), jetzt auch in der Wache: in den
+  Shops von Transgourmet, Rungis und R&S nach dem Begriff suchen, AUCH
+  nach Eigenmarken (Transgourmet "Quality", "Economy", "Premium" …) und
+  anderen Marken derselben Ware. Neue Artikel wie gewohnt in den Katalog
+  (einheit, gebinde, preis netto, stand, quelle "shop-suche"); gebinde so,
+  dass preis/gebinde €/kg bzw. €/l ergibt, wo der Inhalt eindeutig ist.
+  Nichts erfinden. Am Ende status "fertig", bericht = gefundene Artikel.
+
+APP-SEITE (Version 44, 30.09.2026)
+  - Umrechnung: Stückartikel mit Inhalt werden auf €/l bzw. €/kg
+    gerechnet. Neu: Steht "6 x 0,5 l" in der Bezeichnung einer Zeile,
+    deren vkeh EIN Stück meint (FL, ST, STK, DS, GL, BTL, BE, BO, DOSE,
+    TUBE, KANN, EIMER, SCHALE) und gebinde 1 ist, zählt 0,5 l je Stück.
+    Bei VPE, KRT, Kiste, Packung oder leerer Einheit weiter keine
+    Umrechnung. Beispiel Kotányi Balsamico Glace: jetzt 18,02 €/l statt
+    "9,01 €/Stk", steht damit in einer Liste mit Quality Balsamico Glace
+    (Transgourmet, 15,40 €/l).
+  - Suche kennt Synonyme (Glace/Creme/Crema, Obers/Sahne, Topfen/Quark,
+    Erdäpfel/Kartoffel, Paradeiser/Tomate …) und zeigt oben einen Kasten
+    "Am günstigsten bei <Lieferant>" über alle Marken, in €/kg bzw. €/l.
+  - Plus: Knopf wird kurz grün mit Haken, Meldung oben; Karte zeigt
+    "im Korb n". Schalter "Plus legt automatisch in den Shop-Warenkorb"
+    (Standard an, je Gerät) schreibt 1,5 s nach dem letzten Plus
+    auftrag/shopkorb.
+  - Beim Öffnen: auftrag/anmeldung wird "offen" gesetzt, wenn der letzte
+    Check älter als 4 Stunden ist.

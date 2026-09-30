@@ -149,7 +149,7 @@ if (-not $OhneAutostart) {
         Gut "Kassa-Verknuepfung auf dem Desktop und im Autostart ($KassaUrl, Kiosk; beenden mit Alt+F4)"
         # normales Chrome (Claude-Erweiterung, Portale) beim Anmelden minimiert starten
         $n = $shell.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Startup')) 'Chrome Claude.lnk'))
-        $n.TargetPath = $chrome; $n.Arguments = '--restore-last-session'; $n.WindowStyle = 7; $n.Save()
+        $n.TargetPath = $chrome; $n.Arguments = ''; $n.WindowStyle = 7; $n.Save()
         Gut 'Normales Chrome startet beim Anmelden minimiert (fuer die Claude-Erweiterung)'
     } else {
         Achtung 'Chrome nicht gefunden - erst Chrome installieren, dann EINRICHTEN.ps1 noch einmal starten.'

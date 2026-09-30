@@ -53,6 +53,9 @@ Am alten PC wird dabei nichts verändert.
 
 ## 3 · Neuer PC: Grundeinrichtung (einmalig)
 
+> **Ausführlich, von Grund auf, mit Programmauswahl und Konten:** [GRUNDEINRICHTUNG.md](GRUNDEINRICHTUNG.md).
+> Hier nur die Kurzfassung.
+
 1. **Benutzer**: Windows-Konto `User.Kassa` anlegen und für die Einrichtung **Administrator** lassen
    (die Druck-Aufgaben werden für den Benutzer angelegt, der das Einrichten startet).
 2. **Automatisch anmelden** (damit nach Stromausfall alles von selbst wieder läuft):
@@ -187,6 +190,7 @@ Sonst macht sie nur Teil B (Kalender) und meldet Teil A als „nicht erreichbar�
 
 | Datei | Zweck |
 |---|---|
+| `GRUNDEINRICHTUNG.md` | PC von Grund auf aufbauen (Phasen 0–8) |
 | `alter-pc/SICHERN-alter-kassen-pc.cmd` | alten PC auf USB-Stick sichern (Windows 7, nur lesen) |
 | `kassen-pc/START.cmd` | Einrichtung starten (holt Admin-Rechte, findet den Stick) |
 | `kassen-pc/EINRICHTEN.ps1` | richtet alles ein |

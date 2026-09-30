@@ -108,6 +108,15 @@ Gut 'Windows stellt den Standarddrucker nicht mehr selbst um'
 $std = Get-CimInstance Win32_Printer | Where-Object Default
 if ($std) { Gut "Standarddrucker jetzt: $($std.Name)" } else { Achtung 'Noch kein Standarddrucker - Drucker einrichten und als Standard setzen.' }
 
+# Chrome druckt sonst in Graustufen und ohne Hintergruende: per Richtlinie Farbe,
+# Hintergrundgrafiken an, keine Kopf-/Fusszeilen (gilt fuer den Tagesblatt-Direktdruck).
+$pol = 'HKLM:\SOFTWARE\Policies\Google\Chrome'
+New-Item -Path $pol -Force | Out-Null
+Set-ItemProperty -Path $pol -Name PrintingColorDefault -Value 'color' -Type String
+Set-ItemProperty -Path $pol -Name PrintingBackgroundGraphicsDefault -Value 'enabled' -Type String
+Set-ItemProperty -Path $pol -Name PrintHeaderFooter -Value 0 -Type DWord
+Gut 'Chrome druckt in Farbe, mit Hintergruenden, ohne Kopf-/Fusszeile'
+
 # --- 6. Kassa im Kiosk --------------------------------------------------------
 if (-not $OhneAutostart) {
     Schritt '6. Kassa beim Anmelden'

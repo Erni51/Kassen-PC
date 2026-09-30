@@ -86,7 +86,8 @@ try {
 
 # Webseite sagt: heute kein Druck - kein Fehler
 if ($html -match 'Kein Druck heute') {
-    Schreib ('Webseite: kein Druck heute - ' + (($html -split "`n")[1]).Trim())
+    $kurz = ($html -replace '\s+', ' ').Trim()
+    Schreib ('Webseite: ' + $kurz.Substring(0, [Math]::Min(120, $kurz.Length)))
     exit 0
 }
 

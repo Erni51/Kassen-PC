@@ -22,7 +22,8 @@ param(
     [ValidateSet('abend', 'frueh', 'test')]
     [string]$Lauf = 'abend',
     [switch]$OhneDruck,
-    [switch]$Immer          # Wochentag nicht pruefen (WordPress hat schon "drucken: ja" gesagt)
+    [switch]$Immer,         # Wochentag nicht pruefen (WordPress hat schon "drucken: ja" gesagt)
+    [switch]$Farbtest       # druckt eine Testseite mit roten/gelben Feldern statt des Tagesblatts
 )
 
 # --- Drucktage (gleich wie im Plugin, v30.990 / v31.015) --------------------
@@ -78,7 +79,15 @@ function Hol($adresse) {
 # Sonntag - &trotzdem=1 holt das Blatt trotzdem. Vor 11 Uhr kommt es mit Fruehstueck.
 $Abruf = $Url + '&trotzdem=1'
 try {
-    $html = Hol $Abruf
+    if ($Farbtest) {
+        $Lauf = 'test'
+        $html = '<html><head><title>Lieperts Tagesblatt Farbtest</title></head><body style="font-family:Arial">' +
+                '<h2>Farbtest Kassen-PC</h2><p style="background:#ffd6d6;padding:8px">Allergie: Nuesse (hellrot hinterlegt)</p>' +
+                '<p style="background:#e53935;padding:8px">kraeftig rot</p><p style="background:#fff176;padding:8px">Tisch __ (gelb)</p>' +
+                '<p style="background:#90caf9;padding:8px">blau</p></body></html>'
+    } else {
+        $html = Hol $Abruf
+    }
 } catch {
     Schreib ('BLATT NICHT ERHALTEN: ' + $_.Exception.Message)
     exit 1

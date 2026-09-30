@@ -117,3 +117,20 @@ Erst `C:\Lieperts\PRUEFEN.ps1`, Protokolle: `kassa-helfer.log`, `tagesblatt.log`
 
 Schlüssel und Quick-Login-URL liegen **nur** am Kassen-PC (`C:\Lieperts\kassa-zugang.txt`,
 `kassa-einstellungen.txt`) – dieses Repository ist öffentlich.
+
+---
+
+## Stand 30.09.2026, 22:25 – läuft
+
+- Tagesdaten `/wp-json/lieperts/v1/kassa-tagesdaten` sind **live** (Kopfzeile `X-Lieperts-Kassa-Key`) und liefern je Zimmer
+  `schreiben` / `zuruecksetzen` und die Liste `kassa` (artikel_id, label, betrag, menge, ust).
+- Kassa-Anmeldung über den **Admin**-Quick-Login (der Kasse-Link darf keine Artikel ändern).
+- Kassa-Felder: `name`, `price`, `netPrice` (`taxRate` bleibt). Einstellungen: `PREISFELD=price`, `NETTOFELD=netPrice`,
+  `NAMEFELD=name`, `SCHREIBEN=ja`.
+- Erster echter Lauf 22:25: 12 von 12 Artikeln geschrieben und zurückgelesen („Zimmer Salbei – Gast“, Abgaben „(2x)“,
+  leere Zimmer auf 0,00).
+- Tagesblatt: Drucktage bestimmt das PC-Skript (früh Fr/Sa/So 07:15, abends Mo/Di/Fr/Sa 16:15), Abruf mit `&trotzdem=1`;
+  Druck still über Chrome (`--kiosk-printing`), Schrift schwarz, Hintergründe verstärkt. Farbschalter in der wp-config:
+  `LRV8_V30960_FARBE` true, `LRV8_V30960_SEITE2_SW` false.
+- Offen: Aufgaben am alten Windows-Kassen-PC abschalten (sonst doppelter Druck), Schlüssel und Quick-Login
+  einmal ohne Foto erneuern, Farbdichte am HP-Drucker.

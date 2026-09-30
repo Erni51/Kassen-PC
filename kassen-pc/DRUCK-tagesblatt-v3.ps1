@@ -149,7 +149,13 @@ if ($browser) {
         $autoHtml = [IO.Path]::ChangeExtension($datei, '.auto.html')
         $js = '<script>addEventListener("load",function(){setTimeout(function(){window.print();setTimeout(function(){window.close()},3000)},800)})</script>'
         [System.IO.File]::WriteAllText($autoHtml, (Mit-Kopf ($css + $js)), $utf8)
-        $prof = Join-Path $env:TEMP 'lieperts-kiosk-druck'
+        # Eigenes Chrome-Profil nur fuer den Druck. Die Druckvorgaben (Farbe, Hintergruende,
+        # keine Kopf-/Fusszeile) stehen in dessen Preferences - geht ohne Adminrechte.
+        $prof = Join-Path $Ordner 'chrome-druck'
+        New-Item -ItemType Directory -Force -Path (Join-Path $prof 'Default') | Out-Null
+        $app = '{"version":2,"isColorEnabled":true,"isCssBackgroundEnabled":true,"isHeaderFooterEnabled":false,"marginsType":0,"scaling":"100","scalingType":0}'
+        $prefs = '{"printing":{"print_preview_sticky_settings":{"appState":' + (ConvertTo-Json $app) + '}}}'
+        [System.IO.File]::WriteAllText((Join-Path $prof 'Default\Preferences'), $prefs, (New-Object System.Text.UTF8Encoding($false)))
         $arg = @('--kiosk-printing', "--user-data-dir=`"$prof`"", '--no-first-run', '--no-default-browser-check',
                  '--disable-extensions', '--window-position=-3000,0', '--window-size=1000,1400', '--new-window', (Als-Url $autoHtml))
         $b = Start-Process -FilePath $browser -ArgumentList $arg -PassThru

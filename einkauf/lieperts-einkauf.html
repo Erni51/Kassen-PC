@@ -777,7 +777,7 @@ dialog::backdrop{background:rgba(25,40,65,.55)}
           <button class="knopf navy" id="btnScan" type="button">Barcode scannen</button>
           <label class="knopf" id="btnScanFoto" for="scanEingabe">
             <span id="btnScanFotoText">Foto vom Code</span>
-            <input type="file" id="scanEingabe" class="datei-feld" accept="image/*">
+            <input type="file" id="scanEingabe" class="datei-feld" accept="image/*" capture="environment">
           </label>
           <button class="knopf" id="btnStamm" type="button">Aus dem Stamm holen</button>
         </div>
@@ -921,6 +921,7 @@ dialog::backdrop{background:rgba(25,40,65,.55)}
   </div>
 </dialog>
 
+<script src="zxing.min.js"></script>
 <script>
 (function(){
   "use strict";
@@ -2424,6 +2425,7 @@ dialog::backdrop{background:rgba(25,40,65,.55)}
     korbSichern();
     korbZeichnen();
     vorlagenZeichnen();
+    bedingungenZeichnen();
     balkenZeichnen();
     var drin = vorhanden ? vorhanden.menge : 1;
     var sh = shopVon(lief);
@@ -2546,6 +2548,10 @@ dialog::backdrop{background:rgba(25,40,65,.55)}
           (SCHNELL[l.id]
             ? '<a class="knopf klein" href="' + SCHNELL[l.id] + '" target="_blank" rel="noopener">Schnellerfassung \u00f6ffnen</a>'
             : "") +
+          (!shopVon(l.id)
+            ? '<a class="knopf klein voll" href="' + entschaerfen(waLink(l.id)) + '" target="_blank" rel="noopener">Per WhatsApp an den Vertreter</a>' +
+              ((bedingungen[l.id] || {}).wa ? "" : '<p class="hinweis k-voll" style="font-size:11.5px">Trag unten bei den Lieferbedingungen die WhatsApp-Nummer des Vertreters ein, dann geht die Nachricht gleich an ihn. Ohne Nummer wählst du den Kontakt in WhatsApp selbst.</p>')
+            : "") +
           '<button class="knopf klein" data-knummern="' + l.id + '">Nummern</button>' +
           '<button class="knopf klein" data-kkopie="' + l.id + '">Als Text</button>' +
           '<button class="knopf klein" data-bestellt="' + l.id + '">Bestellt</button>' +
@@ -2637,7 +2643,7 @@ dialog::backdrop{background:rgba(25,40,65,.55)}
     var zeigen = LIEFERANTEN.filter(function(l){
       if (l.haupt) return true;
       var b = bedingungen[l.id] || {};
-      if (b.minWert || b.zuschlag || b.tage || b.schluss) return true;
+      if (b.minWert || b.zuschlag || b.tage || b.schluss || b.wa) return true;
       return korb.some(function(z){ return z.lief === l.id; });
     });
     function wert(v){
@@ -2661,7 +2667,12 @@ dialog::backdrop{background:rgba(25,40,65,.55)}
           '<span></span>' +
           '<input class="bed-feld" data-bed="tage" data-l="' + l.id + '" placeholder="Liefertage" value="' + entschaerfen(b.tage || "") + '">' +
           '<input class="bed-feld" data-bed="schluss" data-l="' + l.id + '" placeholder="Bestellschluss" value="' + entschaerfen(b.schluss || "") + '">' +
-        '</div>';
+        '</div>' +
+        (shopVon(l.id) ? "" :
+        '<div class="bed-zeile" style="margin-top:-6px;margin-bottom:11px;grid-template-columns:76px 1fr">' +
+          '<span></span>' +
+          '<input class="bed-feld" data-bed="wa" data-l="' + l.id + '" placeholder="WhatsApp Vertreter, z. B. 0664 1234567" inputmode="tel" value="' + entschaerfen(b.wa || "") + '">' +
+        '</div>');
     });
     html += '</div>';
     ziel.innerHTML = html;
@@ -2682,6 +2693,27 @@ dialog::backdrop{background:rgba(25,40,65,.55)}
     });
     raus += "\nSumme: " + geld(summe) + "\nLieperts, Leutschach";
     return raus;
+  }
+
+  /* Bestellung für den Vertreter per WhatsApp: Menge, Nummer, Artikel, ohne Preise. */
+  function waText(lief){
+    var raus = "Bestellung Lieperts, Leutschach \u2014 " + (LIEF_NAME[lief] || lief) + " \u2014 " +
+      new Date().toLocaleDateString("de-AT") + "\n\n";
+    korb.forEach(function(z){
+      if (z.lief !== lief) return;
+      var a = artikel[z.artikelId];
+      var e = a && a.lieferanten ? a.lieferanten[lief] : null;
+      var gebinde = e && e.gebinde && a && !(a.einheit === "Stk" && Number(e.gebinde) === 1) ? " (" + zahl(Number(e.gebinde)) + " " + a.einheit + (e.vkeh ? " je " + e.vkeh : "") + ")" : "";
+      raus += z.menge + " \u00d7 " + (e && e.artnr && !(e.quelle === "hogast" && !e.hgnr) ? e.artnr + " " : "") +
+              (e && e.bezeichnung ? e.bezeichnung : (a ? a.name : z.artikelId)) + gebinde + "\n";
+    });
+    raus += "\nBitte kurz bestätigen. Danke!\nManuel Liepert";
+    return raus;
+  }
+  function waLink(lief){
+    var nr = String((bedingungen[lief] || {}).wa || "").replace(/[^\d]/g, "").replace(/^00/, "");
+    if (nr && nr.charAt(0) === "0") nr = "43" + nr.slice(1);   // österreichische Nummer ohne Vorwahl
+    return "https://wa.me/" + nr + "?text=" + encodeURIComponent(waText(lief));
   }
 
   /* Nur Nummer und Menge \u2014 zum Abtippen in die Schnellerfassung. */
@@ -3861,7 +3893,7 @@ dialog::backdrop{background:rgba(25,40,65,.55)}
     function j(b){ return b ? '<span class="ja">ja</span>' : '<span class="nein">nein</span>'; }
     el.innerHTML =
       "Kamera in dieser Seite erlaubt: " + (kam === null ? "<b>unklar</b>" : j(kam)) +
-      " · Barcode-Leser: " + j(typeof window.BarcodeDetector === "function") +
+      " · Barcode-Leser: " + j(typeof window.BarcodeDetector === "function" || !!zxBereit()) +
       " · Claude liest Bilder: " + j(kannBilder) +
       (diag.dateien ? " · Bilder verarbeitet: <b>" + diag.dateien + "</b>" : "");
   }
@@ -3987,7 +4019,80 @@ dialog::backdrop{background:rgba(25,40,65,.55)}
     return null;
   }
 
-  /* Zwei Wege: der Barcode-Leser des Telefons, sonst liest Claude die Ziffern. */
+  /* ZXing: ein Barcode-Leser, der in der Seite selbst läuft. Er braucht weder den
+     eingebauten Leser des Telefons (fehlt in der Claude-App) noch Claude. */
+  var zxLeser = null;
+  function zxBereit(){
+    if (zxLeser) return zxLeser;
+    var Z = window.ZXing;
+    if (!Z || !Z.MultiFormatReader) return null;
+    try {
+      var hints = new Map();
+      hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [Z.BarcodeFormat.EAN_13, Z.BarcodeFormat.EAN_8,
+        Z.BarcodeFormat.UPC_A, Z.BarcodeFormat.UPC_E, Z.BarcodeFormat.CODE_128, Z.BarcodeFormat.ITF, Z.BarcodeFormat.CODE_39]);
+      hints.set(Z.DecodeHintType.TRY_HARDER, true);
+      zxLeser = new Z.MultiFormatReader();
+      zxLeser.setHints(hints);
+    } catch(e){ zxLeser = null; }
+    return zxLeser;
+  }
+  /* Eine Leinwand lesen: ganz, gedreht, und nur der mittlere Streifen. */
+  function zxLeinwand(cv){
+    var Z = window.ZXing, r = zxBereit();
+    if (!r) return null;
+    function versuch(c){
+      try {
+        var q = new Z.HTMLCanvasElementLuminanceSource(c);
+        var t = r.decode(new Z.BinaryBitmap(new Z.HybridBinarizer(q)));
+        return t && t.getText ? t.getText() : null;
+      } catch(e){ return null; } finally { try { r.reset(); } catch(e){} }
+    }
+    var t = versuch(cv);
+    if (t) return t;
+    // mittlerer Streifen (dort hält man den Code meistens hin)
+    var st = document.createElement("canvas");
+    st.width = cv.width; st.height = Math.max(60, Math.round(cv.height * 0.4));
+    st.getContext("2d").drawImage(cv, 0, Math.round(cv.height * 0.3), cv.width, st.height, 0, 0, st.width, st.height);
+    t = versuch(st);
+    if (t) return t;
+    // um 90 Grad gedreht (Handy hochkant, Code quer)
+    var dr = document.createElement("canvas");
+    dr.width = cv.height; dr.height = cv.width;
+    var g = dr.getContext("2d");
+    g.translate(dr.width / 2, dr.height / 2); g.rotate(Math.PI / 2);
+    g.drawImage(cv, -cv.width / 2, -cv.height / 2);
+    return versuch(dr);
+  }
+  function bildAufLeinwand(datei, maxKante){
+    return new Promise(function(ok, fehler){
+      var url = URL.createObjectURL(datei), img = new Image();
+      img.onload = function(){
+        var f = Math.min(1, maxKante / Math.max(img.naturalWidth, img.naturalHeight));
+        var cv = document.createElement("canvas");
+        cv.width = Math.max(1, Math.round(img.naturalWidth * f));
+        cv.height = Math.max(1, Math.round(img.naturalHeight * f));
+        cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+        URL.revokeObjectURL(url);
+        ok(cv);
+      };
+      img.onerror = function(){ URL.revokeObjectURL(url); fehler(new Error("bild")); };
+      img.src = url;
+    });
+  }
+  function zxAusDatei(datei){
+    if (!zxBereit()) return Promise.resolve(null);
+    // erst in handlicher Größe, dann größer — Handyfotos haben 12 Megapixel
+    return bildAufLeinwand(datei, 1400).then(function(cv){
+      var t = zxLeinwand(cv);
+      if (t) return t;
+      return bildAufLeinwand(datei, 2400).then(zxLeinwand);
+    }).then(function(t){
+      var e = nurZiffern(t);
+      return e.length >= 8 ? {ean: e, weg: "Leser"} : null;
+    }).catch(function(){ return null; });
+  }
+
+  /* Drei Wege: der Barcode-Leser des Telefons, dann ZXing, zuletzt liest Claude die Ziffern. */
   function eanAusBild(datei){
     var ueberBarcode = Promise.resolve(null);
     if (typeof window.BarcodeDetector === "function"){
@@ -4009,6 +4114,9 @@ dialog::backdrop{background:rgba(25,40,65,.55)}
 
     return ueberBarcode.then(function(treffer){
       if (treffer && treffer.ean.length >= 8) return treffer;
+      return zxAusDatei(datei);
+    }).then(function(treffer){
+      if (treffer && treffer.ean && treffer.ean.length >= 8) return treffer;
       if (!sample || !kannBilder) return null;
       return sample.json(
         "Auf dem Bild ist ein Produkt-Etikett mit Strichcode. Lies die Ziffernfolge, " +
@@ -4081,9 +4189,10 @@ dialog::backdrop{background:rgba(25,40,65,.55)}
     hin.className = "scan-hinweis";
     hin.textContent = "Kamera wird geöffnet…";
 
-    if (typeof window.BarcodeDetector !== "function"){
+    var mitDetector = typeof window.BarcodeDetector === "function";
+    if (!mitDetector && !zxBereit()){
       hin.className = "scan-hinweis fehlgeschlagen";
-      hin.textContent = "Dieser Browser hat keinen Barcode-Leser eingebaut. Nimm stattdessen „Foto vom Code“ — dann liest Claude die Ziffern.";
+      hin.textContent = "Hier gibt es keinen Barcode-Leser. Nimm stattdessen „Foto vom Code“ — dann liest Claude die Ziffern.";
       return;
     }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
@@ -4101,20 +4210,35 @@ dialog::backdrop{background:rgba(25,40,65,.55)}
       })
       .then(function(){
         hin.textContent = "Suche nach einem Code…";
-        var det = new window.BarcodeDetector({
-          formats: ["ean_13","ean_8","upc_a","upc_e","code_128","itf","code_39"]
-        });
-        scanTimer = setInterval(function(){
-          var v = $("scanVideo");
-          if (!v || v.readyState < 2) return;
-          det.detect(v).then(function(tr){
-            if (!tr || !tr.length || !tr[0].rawValue) return;
-            var ean = nurZiffern(tr[0].rawValue);
-            if (ean.length < 8) return;
-            scanBeenden();
-            eanVerarbeiten(ean, "Scanner");
-          }).catch(function(){});
-        }, 320);
+        function gefunden(roh){
+          var ean = nurZiffern(roh);
+          if (ean.length < 8 || !scanStrom) return;
+          scanBeenden();
+          eanVerarbeiten(ean, "Scanner");
+        }
+        if (mitDetector){
+          var det = new window.BarcodeDetector({
+            formats: ["ean_13","ean_8","upc_a","upc_e","code_128","itf","code_39"]
+          });
+          scanTimer = setInterval(function(){
+            var v = $("scanVideo");
+            if (!v || v.readyState < 2) return;
+            det.detect(v).then(function(tr){
+              if (tr && tr.length && tr[0].rawValue) gefunden(tr[0].rawValue);
+            }).catch(function(){});
+          }, 320);
+        } else {
+          var bild = document.createElement("canvas");
+          scanTimer = setInterval(function(){
+            var v = $("scanVideo");
+            if (!v || v.readyState < 2 || !v.videoWidth) return;
+            var f = Math.min(1, 1000 / Math.max(v.videoWidth, v.videoHeight));
+            bild.width = Math.round(v.videoWidth * f); bild.height = Math.round(v.videoHeight * f);
+            bild.getContext("2d").drawImage(v, 0, 0, bild.width, bild.height);
+            var t = zxLeinwand(bild);
+            if (t) gefunden(t);
+          }, 450);
+        }
       })
       .catch(function(e){
         var n = (e && e.name) || "";
@@ -4152,7 +4276,7 @@ dialog::backdrop{background:rgba(25,40,65,.55)}
         stand.innerHTML = '<div class="bahn" style="margin:12px 0 0"><span class="punkt"></span><div>' +
           '<b>Keine Nummer erkannt</b><br>' +
           (r && r.text ? "Auf dem Etikett stand: " + entschaerfen(String(r.text).slice(0,90)) + ". " : "") +
-          'Halt den Strichcode gerade und gut beleuchtet ins Bild — oder tipp den Artikel oben ein.' +
+          'Halt den Strichcode gerade, formatfüllend und gut beleuchtet ins Bild (nicht zu nah, sonst wird er unscharf) — oder tipp den Artikel oben ein.' +
           '</div></div>';
         return;
       }
@@ -4253,7 +4377,7 @@ dialog::backdrop{background:rgba(25,40,65,.55)}
     var lid = inp.getAttribute("data-l"), feld = inp.getAttribute("data-bed");
     var roh = inp.value.trim();
     bedingungen[lid] = bedingungen[lid] || {};
-    if (feld === "tage" || feld === "schluss"){
+    if (feld === "tage" || feld === "schluss" || feld === "wa"){
       if (roh === "") delete bedingungen[lid][feld]; else bedingungen[lid][feld] = roh;
     } else {
       var n = parseFloat(roh.replace(",", "."));

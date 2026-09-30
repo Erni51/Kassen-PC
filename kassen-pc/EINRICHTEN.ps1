@@ -143,10 +143,10 @@ if (-not $OhneAutostart) {
             $lnk = $shell.CreateShortcut((Join-Path $ort 'Kassa.lnk'))
             $lnk.TargetPath = $chrome
             # eigenes Profil fuer die Kassa, damit das normale Chrome (Claude-Erweiterung) daneben laufen kann
-            $lnk.Arguments = "--user-data-dir=`"$Ziel\chrome-kassa`" --kiosk --app=$KassaUrl"
+            $lnk.Arguments = "--user-data-dir=`"$Ziel\chrome-kassa`" --start-maximized --app=$KassaUrl"
             $lnk.Save()
         }
-        Gut "Kassa-Verknuepfung auf dem Desktop und im Autostart ($KassaUrl, Kiosk; beenden mit Alt+F4)"
+        Gut "Kassa-Verknuepfung auf dem Desktop und im Autostart ($KassaUrl, eigenes Fenster maximiert, Vollbild ueber den Knopf der Kassa)"
         # normales Chrome (Claude-Erweiterung, Portale) beim Anmelden minimiert starten
         $n = $shell.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Startup')) 'Chrome Claude.lnk'))
         $n.TargetPath = $chrome; $n.Arguments = ''; $n.WindowStyle = 7; $n.Save()

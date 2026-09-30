@@ -9,4 +9,6 @@ foreach ($n in 'Lieperts Cron', 'Kassa frueh', 'Kassa abend', 'Kassa Minibar', '
 }
 $lnk = Join-Path ([Environment]::GetFolderPath('Startup')) 'Kassa.lnk'
 if (Test-Path $lnk) { Remove-Item $lnk; Write-Host 'Kassa-Autostart entfernt' }
+$lnk2 = Join-Path ([Environment]::GetFolderPath('Startup')) 'Chrome Claude.lnk'
+if (Test-Path $lnk2) { Remove-Item $lnk2 }
 Write-Host 'Energiespar-Einstellung zurueck (falls gewuenscht): powercfg /restoredefaultschemes'

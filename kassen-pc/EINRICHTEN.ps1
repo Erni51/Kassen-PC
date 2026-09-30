@@ -11,7 +11,7 @@
 #        Kassa frueh    taeglich 07:15  HELFER -Lauf frueh  (Preise, dann Tagesblatt)
 #        Kassa abend    taeglich 16:15  HELFER -Lauf abend  (Preise, dann Tagesblatt)
 #        Lieperts Cron  alle 5 Minuten  wp-cron.php
-#   4. Energie: nie schlafen, Bildschirm nie aus; Nutzungszeit 06-24 Uhr
+#   4. Energie: nie schlafen, Bildschirm nach 15 Min. aus; Nutzungszeit 06-24 Uhr
 #   5. Standarddrucker nicht mehr automatisch umstellen
 #   6. Kassa im Chrome-Kiosk beim Anmelden
 #   7. Probelauf (ohne Druck, ohne Schreiben in die Kassa)
@@ -94,10 +94,17 @@ foreach ($n in 'Kassa frueh', 'Kassa abend', 'Kassa Minibar', 'Lieperts Cron') {
 Schritt '4. Energie und Updates'
 powercfg /change standby-timeout-ac 0
 powercfg /change hibernate-timeout-ac 0
-powercfg /change monitor-timeout-ac 0
+powercfg /change monitor-timeout-ac 15   # Bildschirm nach 15 Min. aus, Beruehren weckt ihn
 powercfg /change disk-timeout-ac 0
 powercfg /hibernate off
-Gut 'nie schlafen, Bildschirm und Festplatte nie aus'
+# USB nie schlafen legen (Touch des Bildschirms haengt an USB)
+powercfg /setacvalueindex SCHEME_CURRENT 2a737441-1930-4402-8d77-b2bebba308a3 48e6b7a6-50f5-4782-a5d4-53bb8f07e226 0
+# nach dem Aufwachen kein Kennwort verlangen
+powercfg /setacvalueindex SCHEME_CURRENT SUB_NONE CONSOLELOCK 0
+powercfg /setactive SCHEME_CURRENT
+# Netzwerkkarte nicht abschalten (sonst laeuft der Cron nicht)
+Get-NetAdapter -Physical -ErrorAction SilentlyContinue | ForEach-Object { Disable-NetAdapterPowerManagement -Name $_.Name -NoRestart -ErrorAction SilentlyContinue }
+Gut 'PC schlaeft nie, Bildschirm nach 15 Min. aus, USB und Netzwerk bleiben wach, kein Kennwort beim Aufwachen'
 # Windows erlaubt hoechstens 18 Stunden Nutzungszeit: 06:00 bis 24:00 -> Neustarts nur nachts
 $wu = 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings'
 New-Item -Path $wu -Force | Out-Null

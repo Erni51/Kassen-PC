@@ -108,6 +108,27 @@ if ($Erkunden) {
     try { Kassa-Anmelden } catch { Schreib ('Anmeldung gescheitert: ' + $_.Exception.Message); exit 1 }
     $dir = Join-Path $Ordner 'erkundet'
     New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    # Alle Artikel einmal lesen und die Zimmer-Artikel (Zimmer, Infrastrukturbeitrag,
+    # Naechtigungsabgabe) mit Kennung und Namen auflisten - nur lesen.
+    try {
+        $r = Invoke-WebRequest -Uri "$Kassa/api/Product?limit=15000" -UseBasicParsing -WebSession $script:Sitzung -TimeoutSec 60
+        $roh = [System.Text.Encoding]::UTF8.GetString($r.RawContentStream.ToArray())
+        if ($roh.TrimStart().StartsWith('<')) { throw 'Kassa liefert HTML statt Daten (Anmeldung?)' }
+        Set-Content -Path (Join-Path $dir 'alle-artikel.json') -Value $roh -Encoding UTF8
+        $alle = $roh | ConvertFrom-Json
+        if ($alle -isnot [array]) { foreach ($f in 'items', 'data', 'products', 'rows') { if ($alle.$f) { $alle = $alle.$f; break } } }
+        $zimmer = @($alle | Where-Object { [string]$_.name -match 'Zimmer|Infrastruktur|chtigung' })
+        Schreib ("Alle Artikel gelesen: $(@($alle).Count), davon Zimmer-Artikel: $($zimmer.Count)")
+        foreach ($a in ($zimmer | Sort-Object { [string]$_.name })) {
+            $id = if ($a._id) { $a._id } elseif ($a.id) { $a.id } else { '?' }
+            Write-Output ("  {0}  {1}" -f $id, $a.name)
+        }
+        if ($zimmer.Count -gt 0) {
+            Write-Output ''; Write-Output 'Felder eines Zimmer-Artikels (Name = Wert):'
+            $zimmer[0].PSObject.Properties | ForEach-Object { Write-Output ("    {0} = {1}" -f $_.Name, (($_.Value | ConvertTo-Json -Compress -Depth 3) -replace '^(.{0,80}).*$', '$1')) }
+        }
+    } catch { Schreib ('Artikelliste nicht lesbar: ' + $_.Exception.Message) }
+    Write-Output ''
     foreach ($e in (@($Artikel.GetEnumerator()) + @($Abgaben.GetEnumerator()))) {
         try {
             $text = Artikel-Holen $e.Value

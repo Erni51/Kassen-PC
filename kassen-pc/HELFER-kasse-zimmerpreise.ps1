@@ -304,15 +304,20 @@ if ($daten) {
         $ok = Mit-Wiederholung { Kassa-Anmelden; $true } 'Kassa-Anmeldung'
         if (-not $ok) { Schreib 'Kassa nicht erreichbar oder Quick-Login abgelaufen - keine Preise.' }
         else {
-            $mbIds = @{}
+            $mbIds = @{}; $mbBasis = @{}
             if (@($plan | Where-Object { -not $_.Id }).Count -gt 0) {
                 try {
                     $r = Invoke-WebRequest -Uri "$Kassa/api/Product?limit=15000" -UseBasicParsing -WebSession $script:Sitzung -TimeoutSec 60
                     $alle = [System.Text.Encoding]::UTF8.GetString($r.RawContentStream.ToArray()) | ConvertFrom-Json
                     if ($alle -isnot [array]) { foreach ($f in 'items', 'data', 'products', 'rows') { if ($alle.$f) { $alle = $alle.$f; break } } }
                     foreach ($such in @($plan | Where-Object { -not $_.Id } | ForEach-Object { $_.Suche } | Select-Object -Unique)) {
-                        $treffer = @($alle | Where-Object { [string]$_.name -match ('^' + [regex]::Escape($such) + '(\s|$)') })
-                        if ($treffer.Count -eq 1) { $mbIds[$such] = [string]$treffer[0]._id }
+                        # "Minibar Salbei" findet auch "Minibar GETRAENKE Salbei" / "Minibar Getraenke Salbei"
+                        $muster = if ($such -match '^Minibar Snacks ') { '^' + [regex]::Escape($such) + '(\s|$)' } else { '^Minibar (Getr\S*nke )?' + [regex]::Escape($such.Substring(8)) + '(\s|$)' }
+                        $treffer = @($alle | Where-Object { [string]$_.name -match $muster })
+                        if ($treffer.Count -eq 1) {
+                            $mbIds[$such] = [string]$treffer[0]._id
+                            $mbBasis[$such] = ([string]$treffer[0].name -split ' - ')[0].Trim()
+                        }
                         elseif ($treffer.Count -gt 1) { Schreib "${such}: $($treffer.Count) Artikel mit diesem Namen - keiner beschrieben." }
                     }
                 } catch { Schreib ('Minibar-Artikel nicht gefunden: ' + $_.Exception.Message) }
@@ -325,7 +330,7 @@ if ($daten) {
             }
             foreach ($p in $plan) {
                 if (-not $p.Id) {
-                    if ($mbIds[$p.Suche]) { $p.Id = $mbIds[$p.Suche] } else { if ($p.Gruppe -ne 's') { Schreib "$($p.Suche): kein Artikel in der Kassa (bitte anlegen) - uebersprungen." }; continue }
+                    if ($mbIds[$p.Suche]) { $p.Id = $mbIds[$p.Suche]; if ($mbBasis[$p.Suche]) { $p.Name = $mbBasis[$p.Suche] + $p.Name.Substring($p.Suche.Length) } } else { if ($p.Gruppe -ne 's') { Schreib "$($p.Suche): kein Artikel in der Kassa (bitte anlegen) - uebersprungen." }; continue }
                 }
                 try {
                     $obj = (Artikel-Holen $p.Id) | ConvertFrom-Json

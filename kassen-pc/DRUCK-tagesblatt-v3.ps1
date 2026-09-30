@@ -2,7 +2,7 @@
 # Lieperts Tagesblatt-Druck v3  (Nachfolger von DRUCK-tagesblatt-v2.ps1)
 #
 # Holt https://www.lieperts.at/?lrv8_tagesblatt=1 und druckt es still auf dem
-# Standarddrucker (Edge/Chrome -> PDF -> SumatraPDF), Rueckfall mshtml wie v2.
+# Standarddrucker (Chrome/Edge direkt, sonst PDF+SumatraPDF, sonst mshtml wie v2).
 #
 # Aufruf (macht die Aufgabenplanung):
 #   powershell -NoProfile -ExecutionPolicy Bypass -File DRUCK-tagesblatt-v3.ps1 -Lauf abend
@@ -117,34 +117,61 @@ Get-ChildItem $Archiv -Filter 'tagesblatt-*' |
 if ($OhneDruck) { Schreib 'OhneDruck gesetzt - nicht gedruckt.'; exit 0 }
 
 # --- 5. Drucken ---------------------------------------------------------------
-# Weg 1 (still, ohne Dialog): Edge/Chrome macht ein PDF, SumatraPDF druckt es
-#         auf den Standarddrucker. Braucht SumatraPDF (winget install SumatraPDF.SumatraPDF).
-# Weg 2 (Rueckfall): mshtml wie v2 - zeigt unter Windows 11 einen Druckdialog.
-# Weg 3 (Notnagel): Textfassung ueber Out-Printer.
+# Weg 1 (still, scharf): Chrome/Edge druckt direkt auf den Standarddrucker
+#         (--kiosk-printing, kein Dialog; Fenster geht kurz auf und wieder zu).
+# Weg 2 (still): PDF ueber Chrome/Edge, SumatraPDF druckt - kann unscharf wirken.
+# Weg 3 (Rueckfall): mshtml wie v2 - zeigt unter Windows 11 einen Druckdialog.
+# Weg 4 (Notnagel): Textfassung ueber Out-Printer.
 function Finde($pfade) { $pfade | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1 }
-$browser = Finde @("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe",
-                   "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe",
-                   "$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
-                   "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe")
+$browser = Finde @("$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
+                   "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
+                   "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe",
+                   "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe",
+                   "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe")
 $sumatra = Finde @("$env:LOCALAPPDATA\SumatraPDF\SumatraPDF.exe",
                    "$env:ProgramFiles\SumatraPDF\SumatraPDF.exe",
                    "${env:ProgramFiles(x86)}\SumatraPDF\SumatraPDF.exe")
 
+# Druckfassung: Hintergruende (rote Allergie-Felder, gelbe Tischfelder, Kopfzeilen)
+# mitdrucken und Schrift kraeftig schwarz - sonst druckt Chrome alles blass.
+$css = '<style id="kassen-pc-druck">*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}' +
+       'body,body *{color:#000!important;opacity:1!important;text-shadow:none!important}' +
+       'body{font-weight:500}th,b,strong,h1,h2,h3{font-weight:700!important}</style>'
+function Mit-Kopf($zusatz) { if ($html -match '</head>') { $html -replace '</head>', ($zusatz + '</head>') } else { $zusatz + $html } }
+$utf8 = New-Object System.Text.UTF8Encoding($true)
+$druckHtml = [IO.Path]::ChangeExtension($datei, '.druck.html')
+[System.IO.File]::WriteAllText($druckHtml, (Mit-Kopf $css), $utf8)
+function Als-Url($pfad) { '"file:///' + ($pfad -replace '\\', '/') + '"' }
+
+if ($browser) {
+    try {
+        $autoHtml = [IO.Path]::ChangeExtension($datei, '.auto.html')
+        $js = '<script>addEventListener("load",function(){setTimeout(function(){window.print();setTimeout(function(){window.close()},3000)},800)})</script>'
+        [System.IO.File]::WriteAllText($autoHtml, (Mit-Kopf ($css + $js)), $utf8)
+        $prof = Join-Path $env:TEMP 'lieperts-kiosk-druck'
+        $arg = @('--kiosk-printing', "--user-data-dir=`"$prof`"", '--no-first-run', '--no-default-browser-check',
+                 '--disable-extensions', '--window-position=-3000,0', '--window-size=1000,1400', '--new-window', (Als-Url $autoHtml))
+        $b = Start-Process -FilePath $browser -ArgumentList $arg -PassThru
+        if ($b.WaitForExit(90000)) {
+            Schreib 'GEDRUCKT (Browser direkt, still).'
+        } else {
+            try { $b.Kill() } catch {}
+            Schreib 'GEDRUCKT (Browser direkt) - Fenster hat sich nicht selbst geschlossen, beendet.'
+        }
+        Remove-Item $autoHtml -ErrorAction SilentlyContinue
+        exit 0
+    } catch {
+        Schreib ('Direktdruck gescheitert: ' + $_.Exception.Message + ' - naechster Weg.')
+    }
+}
+
 if ($browser -and $sumatra) {
     try {
-        # Druckfassung: Hintergruende (rote Allergie-Felder, gelbe Tischfelder, Kopfzeilen)
-        # mitdrucken und Schrift kraeftig schwarz - sonst druckt Chrome alles blass.
-        $druckHtml = [IO.Path]::ChangeExtension($datei, '.druck.html')
-        $css = '<style id="kassen-pc-druck">*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}' +
-               'body,body *{color:#000!important;opacity:1!important;text-shadow:none!important}' +
-               'body{font-weight:500}th,b,strong,h1,h2,h3{font-weight:700!important}</style>'
-        $mitCss = if ($html -match '</head>') { $html -replace '</head>', ($css + '</head>') } else { $css + $html }
-        [System.IO.File]::WriteAllText($druckHtml, $mitCss, (New-Object System.Text.UTF8Encoding($true)))
         $pdf = [IO.Path]::ChangeExtension($datei, '.pdf')
         if (Test-Path $pdf) { Remove-Item $pdf -Force }
         $prof = Join-Path $env:TEMP 'lieperts-druck-profil'
         $arg = @('--headless=new', '--disable-gpu', '--no-pdf-header-footer', "--user-data-dir=`"$prof`"",
-                 "--print-to-pdf=`"$pdf`"", ('"file:///' + ($druckHtml -replace '\\', '/') + '"'))
+                 "--print-to-pdf=`"$pdf`"", (Als-Url $druckHtml))
         $b = Start-Process -FilePath $browser -ArgumentList $arg -PassThru -WindowStyle Hidden
         if (-not $b.WaitForExit(90000)) { try { $b.Kill() } catch {} }
         if (-not (Test-Path $pdf) -or (Get-Item $pdf).Length -lt 1000) { throw 'PDF nicht erzeugt' }
@@ -153,10 +180,8 @@ if ($browser -and $sumatra) {
         Schreib 'GEDRUCKT (PDF, still).'
         exit 0
     } catch {
-        Schreib ('Stiller Druck gescheitert: ' + $_.Exception.Message + ' - Rueckfall mshtml.')
+        Schreib ('PDF-Druck gescheitert: ' + $_.Exception.Message + ' - Rueckfall mshtml.')
     }
-} else {
-    Schreib 'Hinweis: SumatraPDF fehlt - Druck ueber mshtml (mit Druckdialog). Abhilfe: winget install SumatraPDF.SumatraPDF'
 }
 
 try {

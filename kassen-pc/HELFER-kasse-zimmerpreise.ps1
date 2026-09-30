@@ -50,6 +50,15 @@ $Abgaben = [ordered]@{
     'Naechtigungsabgabe'   = '623ecdf4c169040354fd6864'
     'Infrastrukturbeitrag' = '695629a5805b8a541599ffbb'
 }
+# Die 12 Kassa-Artikel der Gruppe "ZIMMER TEST" (je Zimmer: Zimmer, Naechtigungsabgabe,
+# Infrastrukturbeitrag) - gemessen 30.09.2026 aus /wp-json/lieperts/v1/kassa-tagesdaten.
+# NUR diese Kennungen werden je beschrieben.
+$Erlaubt = @(
+    '6a8cad5a1ee83eff191160a7', '6a8e174f1ee83eff19118b64', '6a8e174f1ee83eff19118b6c',   # Salbei
+    '6a8cad671ee83eff191160b4', '6a8e174f1ee83eff19118b74', '6a8e174f1ee83eff19118b7c',   # Muskat
+    '6a8cad701ee83eff191160bd', '6a8e17501ee83eff19118b84', '6a8e17501ee83eff19118b8c',   # Pfeffer
+    '6a8cad8c1ee83eff191160c6', '6a8e17501ee83eff19118b94', '6a8e17501ee83eff19118b9c'    # Rosmarin
+)
 $Obergrenze = 5000
 $Platzhalter = 179
 $SperrMuster = 'Eigenbelegung|Wartung|Sperre|gesperrt|Storno|storniert|cancel|closed|blocked'
@@ -184,67 +193,79 @@ if (-not $zugang['SCHLUESSEL']) {
 }
 
 # --- 2.-4. Preise schreiben ---------------------------------------------------
+# lieperts.at entscheidet je Zimmer: "schreiben" (Abreisetag: Name mit Gast + Betrag),
+# "zuruecksetzen" (Knopf leeren: Name ohne Gast, 0,00), sonst nichts anfassen.
+# Welche Artikel und Betraege: Liste "kassa" (artikel_id, label, betrag, menge, ust).
 if ($daten) {
-    $schreiben = ($einst['SCHREIBEN'] -eq 'ja')
+    $schreiben = ($einst['SCHREIBEN'] -eq 'ja') -and -not ($daten.trockenlauf -eq $true) -and -not ($daten.test -eq $true)
     $preisFeld = $einst['PREISFELD']; $nettoFeld = $einst['NETTOFELD']
+    $nameFeld = if ($einst['NAMEFELD']) { $einst['NAMEFELD'] } else { 'name' }
     if ($schreiben -and -not $preisFeld) {
         Schreib 'SCHREIBEN=ja, aber PREISFELD leer - erst -Erkunden laufen lassen. Nur Probelauf.'
         $schreiben = $false
     }
 
-    # Pruefen, bevor irgendetwas geschrieben wird
-    $plan = [ordered]@{}
-    $gesehen = @{}
+    # Plan aufstellen und pruefen, bevor irgendetwas geschrieben wird
+    $plan = New-Object System.Collections.ArrayList
+    $abbruch = $false
     foreach ($z in @($daten.zimmer)) {
-        $name = [string]$z.zimmer
-        $key = $Artikel.Keys | Where-Object { $name -match $_ } | Select-Object -First 1
-        if (-not $key) { Schreib "Zimmer '$name' unbekannt - uebersprungen."; continue }
-        $gesehen[$key] = $true
-        $text = ([string]$z.status) + ' ' + ([string]$z.hinweis) + ' ' + ([string]$z.gast)
-        if ($text -match $SperrMuster) { Schreib "${key}: gesperrt/Eigenbelegung/Storno - uebersprungen."; continue }
-        $betrag = 0.0
-        if (-not [double]::TryParse(([string]$z.betrag).Replace(',', '.'), [Globalization.NumberStyles]::Float, [Globalization.CultureInfo]::InvariantCulture, [ref]$betrag) -or $betrag -le 0) {
-            Schreib "${key}: kein Betrag - nichts geschrieben."; continue
-        }
-        if ([math]::Abs($betrag - $Platzhalter) -lt 0.005) { Schreib "${key}: Platzhalter 179 - nichts geschrieben."; continue }
-        if ($betrag -gt $Obergrenze) {
-            Schreib "ABBRUCH: $key mit $betrag EUR ueber der Obergrenze $Obergrenze - es wird KEIN Preis geschrieben."
-            $plan = $null; break
-        }
-        $plan[$key] = [math]::Round($betrag, 2)
-        $erw = [int]$z.erwachsene; $n = [int]$z.naechte
-        Schreib ("{0}: {1:N2} EUR brutto, {2:N2} netto | Abgaben: {3} Erw. x {4} Naechte = {5} x Naechtigungsabgabe, {5} x Infrastrukturbeitrag (an der Kassa als Menge buchen)" -f $key, $plan[$key], ($plan[$key] / 1.1), $erw, $n, ($erw * $n))
-    }
-    foreach ($k in $Artikel.Keys) { if ($plan -and -not $gesehen.ContainsKey($k)) { Schreib "${k}: keine Buchung in den Tagesdaten - kein Preis." } }
+        $zn = [string]$z.zimmer
+        if ($z.schreiben -eq $true) { $art = 'schreiben' }
+        elseif ($z.zuruecksetzen -eq $true -or $z.leer -eq $true) { $art = 'zuruecksetzen' }
+        else { Schreib ("${zn}: nichts zu tun" + $(if ($z.bemerkung) { ' - ' + $z.bemerkung } else { '' })); continue }
 
-    if ($plan -and $plan.Count -gt 0 -and -not $schreiben) {
-        Schreib 'Probelauf (SCHREIBEN=nein) - nichts in die Kassa geschrieben.'
+        if ($art -eq 'schreiben' -and ((([string]$z.status) + ' ' + ([string]$z.gast) + ' ' + ([string]$z.lage)) -match $SperrMuster)) {
+            Schreib "${zn}: gesperrt/Eigenbelegung/Storno - uebersprungen."; continue
+        }
+        foreach ($k in @($z.kassa)) {
+            $id = [string]$k.artikel_id
+            if ($Erlaubt -notcontains $id) { Schreib "${zn}: Artikel $id ist nicht freigegeben - uebersprungen."; continue }
+            $menge = [int]$k.menge
+            if ($art -eq 'zuruecksetzen') {
+                $betrag = 0.0; $name = [string]$k.label
+            } else {
+                $betrag = [double]$k.betrag
+                $istZimmer = ([string]$k.label) -match '^Zimmer'
+                if ($betrag -le 0) { Schreib "${zn}: $($k.label) ohne Betrag - nichts geschrieben."; continue }
+                if ($istZimmer -and [math]::Abs($betrag - $Platzhalter) -lt 0.005) { Schreib "${zn}: Platzhalter 179 - nichts geschrieben."; continue }
+                if ($betrag -gt $Obergrenze) { Schreib "ABBRUCH: ${zn} $($k.label) $betrag EUR ueber $Obergrenze - es wird NICHTS geschrieben."; $abbruch = $true; break }
+                $name = ([string]$k.label) + ' - ' + ([string]$z.gast) + $(if (-not $istZimmer) { " (${menge}x)" } else { '' })
+            }
+            $ust = [double]$k.ust
+            $null = $plan.Add([pscustomobject]@{ Zimmer = $zn; Id = $id; Name = $name; Brutto = [math]::Round($betrag, 2); Netto = [math]::Round($betrag / (1 + $ust / 100), 2) })
+        }
+        if ($abbruch) { break }
     }
-    elseif ($plan -and $plan.Count -gt 0) {
+    if ($abbruch) { $plan.Clear() }
+    foreach ($p in $plan) { Schreib ("  plan: {0} -> {1:N2} EUR (netto {2:N2}) | {3}" -f $p.Id.Substring(18), $p.Brutto, $p.Netto, $p.Name) }
+
+    if ($plan.Count -gt 0 -and -not $schreiben) {
+        Schreib 'Probelauf (SCHREIBEN=nein oder Trockenlauf) - nichts in die Kassa geschrieben.'
+    }
+    elseif ($plan.Count -gt 0) {
         $ok = Mit-Wiederholung { Kassa-Anmelden; $true } 'Kassa-Anmeldung'
         if (-not $ok) { Schreib 'Kassa nicht erreichbar oder Quick-Login abgelaufen - keine Preise.' }
         else {
-            foreach ($k in $plan.Keys) {
-                $id = $Artikel[$k]; $brutto = $plan[$k]; $netto = [math]::Round($brutto / 1.1, 2)
+            foreach ($p in $plan) {
                 try {
-                    $obj = (Artikel-Holen $id) | ConvertFrom-Json
-                    if (-not ($obj.PSObject.Properties.Name -contains $preisFeld)) { throw "Feld '$preisFeld' gibt es im Artikel nicht" }
-                    $obj.$preisFeld = $brutto
-                    if ($nettoFeld) {
-                        if (-not ($obj.PSObject.Properties.Name -contains $nettoFeld)) { throw "Feld '$nettoFeld' gibt es im Artikel nicht" }
-                        $obj.$nettoFeld = $netto
+                    $obj = (Artikel-Holen $p.Id) | ConvertFrom-Json
+                    foreach ($f in @($preisFeld, $nettoFeld, $nameFeld) | Where-Object { $_ }) {
+                        if (-not ($obj.PSObject.Properties.Name -contains $f)) { throw "Feld '$f' gibt es im Artikel nicht" }
                     }
+                    $obj.$preisFeld = $p.Brutto
+                    if ($nettoFeld) { $obj.$nettoFeld = $p.Netto }
+                    $obj.$nameFeld = $p.Name
                     $body = [System.Text.Encoding]::UTF8.GetBytes(($obj | ConvertTo-Json -Depth 20 -Compress))
-                    $null = Invoke-WebRequest -Uri "$Kassa/api/Product/$id`?limit=15000" -Method Post -Body $body `
+                    $null = Invoke-WebRequest -Uri "$Kassa/api/Product/$($p.Id)`?limit=15000" -Method Post -Body $body `
                         -ContentType 'application/json; charset=utf-8' -UseBasicParsing -WebSession $script:Sitzung -TimeoutSec 30
-                    $zurueck = (Artikel-Holen $id) | ConvertFrom-Json
-                    if ([math]::Abs([double]$zurueck.$preisFeld - $brutto) -lt 0.005) {
-                        Schreib ("{0}: {1:N2} EUR geschrieben und zurueckgelesen - OK." -f $k, $brutto)
+                    $zurueck = (Artikel-Holen $p.Id) | ConvertFrom-Json
+                    if ([math]::Abs([double]$zurueck.$preisFeld - $p.Brutto) -lt 0.005 -and [string]$zurueck.$nameFeld -eq $p.Name) {
+                        Schreib ("OK {0:N2} EUR - {1}" -f $p.Brutto, $p.Name)
                     } else {
-                        Schreib ("{0}: NICHT bestaetigt - Kassa zeigt {1}, erwartet {2:N2}." -f $k, $zurueck.$preisFeld, $brutto)
+                        Schreib ("NICHT bestaetigt: {0} - Kassa zeigt {1} / '{2}'" -f $p.Name, $zurueck.$preisFeld, $zurueck.$nameFeld)
                     }
                 } catch {
-                    Schreib ("{0}: FEHLER beim Schreiben - {1}" -f $k, $_.Exception.Message)
+                    Schreib ("FEHLER beim Schreiben {0}: {1}" -f $p.Name, $_.Exception.Message)
                 }
             }
         }

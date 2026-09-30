@@ -1,9 +1,8 @@
 # ============================================================
 # Lieperts Tagesblatt-Druck v3  (Nachfolger von DRUCK-tagesblatt-v2.ps1)
 #
-# Holt https://www.lieperts.at/?lrv8_tagesblatt=1 und druckt es auf dem
-# Standarddrucker - wie v2 ueber die Internet-Explorer-Maschine
-# (rundll32 mshtml.dll,PrintHTML), damit das Papier gleich aussieht.
+# Holt https://www.lieperts.at/?lrv8_tagesblatt=1 und druckt es still auf dem
+# Standarddrucker (Edge/Chrome -> PDF -> SumatraPDF), Rueckfall mshtml wie v2.
 #
 # Aufruf (macht die Aufgabenplanung):
 #   powershell -NoProfile -ExecutionPolicy Bypass -File DRUCK-tagesblatt-v3.ps1 -Lauf abend
@@ -28,8 +27,8 @@ param(
 
 # --- Drucktage (gleich wie im Plugin, v30.990 / v31.015) --------------------
 # 0 = Sonntag, 1 = Montag ... 6 = Samstag
-$Abend = @(1, 2, 5, 6)   # Montag, Dienstag, Freitag, Samstag - 16:30
-$Frueh = @(5, 6, 0)      # Freitag, Samstag, Sonntag          - 07:30
+$Abend = @(1, 2, 5, 6)   # Montag, Dienstag, Freitag, Samstag - 16:15
+$Frueh = @(5, 6, 0)      # Freitag, Samstag, Sonntag          - 07:15
 $Ruhe  = @(3, 4)         # Mittwoch, Donnerstag               - nichts
 
 $Url    = 'https://www.lieperts.at/?lrv8_tagesblatt=1'
@@ -74,9 +73,10 @@ function Hol($adresse) {
     return $wc.DownloadString($adresse)
 }
 
-# Die Webseite entscheidet selbst ueber den Drucktag (v30.990). Fuer Probe
-# und 'drucken: ja' aus den Tagesdaten: &trotzdem=1 erzwingt das Blatt.
-$Abruf = if ($Lauf -eq 'test' -or $Immer) { $Url + '&trotzdem=1' } else { $Url }
+# Die Drucktage bestimmt DIESES Skript ($Abend/$Frueh oben; Manuel 30.09.:
+# Freitag und Samstag auch morgens). Das Plugin (v30.990) kennt frueh nur den
+# Sonntag - &trotzdem=1 holt das Blatt trotzdem. Vor 11 Uhr kommt es mit Fruehstueck.
+$Abruf = $Url + '&trotzdem=1'
 try {
     $html = Hol $Abruf
 } catch {
@@ -117,11 +117,45 @@ Get-ChildItem $Archiv -Filter 'tagesblatt-*.html' |
 if ($OhneDruck) { Schreib 'OhneDruck gesetzt - nicht gedruckt.'; exit 0 }
 
 # --- 5. Drucken ---------------------------------------------------------------
+# Weg 1 (still, ohne Dialog): Edge/Chrome macht ein PDF, SumatraPDF druckt es
+#         auf den Standarddrucker. Braucht SumatraPDF (winget install SumatraPDF.SumatraPDF).
+# Weg 2 (Rueckfall): mshtml wie v2 - zeigt unter Windows 11 einen Druckdialog.
+# Weg 3 (Notnagel): Textfassung ueber Out-Printer.
+function Finde($pfade) { $pfade | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1 }
+$browser = Finde @("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe",
+                   "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe",
+                   "$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
+                   "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe")
+$sumatra = Finde @("$env:LOCALAPPDATA\SumatraPDF\SumatraPDF.exe",
+                   "$env:ProgramFiles\SumatraPDF\SumatraPDF.exe",
+                   "${env:ProgramFiles(x86)}\SumatraPDF\SumatraPDF.exe")
+
+if ($browser -and $sumatra) {
+    try {
+        $pdf = [IO.Path]::ChangeExtension($datei, '.pdf')
+        if (Test-Path $pdf) { Remove-Item $pdf -Force }
+        $prof = Join-Path $env:TEMP 'lieperts-druck-profil'
+        $arg = @('--headless=new', '--disable-gpu', '--no-pdf-header-footer', "--user-data-dir=`"$prof`"",
+                 "--print-to-pdf=`"$pdf`"", ('"file:///' + ($datei -replace '\\', '/') + '"'))
+        $b = Start-Process -FilePath $browser -ArgumentList $arg -PassThru -WindowStyle Hidden
+        if (-not $b.WaitForExit(90000)) { try { $b.Kill() } catch {} }
+        if (-not (Test-Path $pdf) -or (Get-Item $pdf).Length -lt 1000) { throw 'PDF nicht erzeugt' }
+        $d = Start-Process -FilePath $sumatra -ArgumentList @('-print-to-default', '-silent', "`"$pdf`"") -PassThru -WindowStyle Hidden
+        if (-not $d.WaitForExit(120000)) { throw 'SumatraPDF nach 2 Minuten nicht fertig' }
+        Schreib 'GEDRUCKT (PDF, still).'
+        exit 0
+    } catch {
+        Schreib ('Stiller Druck gescheitert: ' + $_.Exception.Message + ' - Rueckfall mshtml.')
+    }
+} else {
+    Schreib 'Hinweis: SumatraPDF fehlt - Druck ueber mshtml (mit Druckdialog). Abhilfe: winget install SumatraPDF.SumatraPDF'
+}
+
 try {
     $p = Start-Process -FilePath 'rundll32.exe' -ArgumentList ('mshtml.dll,PrintHTML "' + $datei + '"') -PassThru
-    # Haengt der Druck (z. B. ein Dialog wartet auf Enter), nach 3 Minuten melden.
+    # Haengt der Druck (Dialog wartet auf Enter), nach 3 Minuten melden.
     if (-not $p.WaitForExit(180000)) {
-        Schreib 'WARNUNG: Druck nach 3 Minuten nicht fertig - wartet evtl. ein Druckdialog am Bildschirm auf Enter.'
+        Schreib 'WARNUNG: Druck nach 3 Minuten nicht fertig - wartet ein Druckdialog am Bildschirm?'
         exit 4
     }
     if ($p.ExitCode -ne 0) { throw "rundll32 Rueckgabe $($p.ExitCode)" }
@@ -129,7 +163,7 @@ try {
 } catch {
     Schreib ('mshtml-Druck gescheitert: ' + $_.Exception.Message + ' - Rueckfall Textfassung.')
     try {
-        $text = Hol ($Url + '&format=text')
+        $text = Hol ($Abruf + '&format=text')
         $text | Out-Printer
         Schreib 'GEDRUCKT (Textfassung).'
     } catch {

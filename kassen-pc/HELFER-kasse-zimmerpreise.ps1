@@ -31,6 +31,7 @@ param(
     [ValidateSet('frueh', 'abend')]
     [string]$Lauf = 'abend',
     [switch]$Erkunden,
+    [switch]$Rohdaten,      # zeigt die rohe Antwort der Tagesdaten (nur lesen)
     [switch]$OhneDruck
 )
 
@@ -141,6 +142,18 @@ if ($Erkunden) {
     }
     Write-Output ''
     Write-Output "Die Dateien liegen in $dir. Den Feldnamen mit dem Bruttopreis als PREISFELD, den Nettopreis als NETTOFELD in kassa-einstellungen.txt eintragen."
+    exit 0
+}
+
+# --- Rohdaten: nur anzeigen, was lieperts.at liefert ---------------------------
+if ($Rohdaten) {
+    $kopf = if ($zugang['HEADER']) { $zugang['HEADER'] } else { 'X-Lieperts-Kassa-Key' }
+    try {
+        $r = Invoke-WebRequest -Uri $TagesdatenUrl -UseBasicParsing -Headers @{ $kopf = $zugang['SCHLUESSEL'] } -TimeoutSec 60
+        $t = [System.Text.Encoding]::UTF8.GetString($r.RawContentStream.ToArray())
+        Write-Output ("Status $($r.StatusCode), $($t.Length) Zeichen:")
+        try { ($t | ConvertFrom-Json | ConvertTo-Json -Depth 6) } catch { $t.Substring(0, [Math]::Min(2500, $t.Length)) }
+    } catch { Write-Output ('Fehler: ' + $_.Exception.Message) }
     exit 0
 }
 

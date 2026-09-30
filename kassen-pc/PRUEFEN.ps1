@@ -12,7 +12,13 @@ foreach ($n in 'Lieperts Cron', 'Kassa frueh', 'Kassa abend', 'Kassa Minibar') {
         $farbe = if ($i.LastTaskResult -eq 0 -or $i.LastTaskResult -eq 267011) { 'Green' } else { 'Yellow' }
         Write-Host ("{0,-32} zuletzt {1}  Ergebnis {2}  naechster {3}" -f $n, $i.LastRunTime, $i.LastTaskResult, $i.NextRunTime) -ForegroundColor $farbe
     } catch {
-        Write-Host "$n FEHLT" -ForegroundColor Red
+        # Aufgaben, die als SYSTEM laufen (Cron), sieht nur ein Administrator-Fenster.
+        $log = @{ 'Lieperts Cron' = "$Ziel\cron-lieperts.log"; 'Kassa Minibar' = "$Ziel\kassa-helfer.log" }[$n]
+        if ($log -and (Test-Path $log) -and ((Get-Date) - (Get-Item $log).LastWriteTime).TotalMinutes -lt 40) {
+            Write-Host ("{0,-32} laeuft (Protokoll zuletzt {1}) - Details nur im Administrator-Fenster" -f $n, (Get-Item $log).LastWriteTime) -ForegroundColor Green
+        } else {
+            Write-Host "$n FEHLT oder nicht sichtbar (Administrator-Fenster pruefen)" -ForegroundColor Red
+        }
     }
 }
 Write-Host '(Ergebnis 0 = gut; 267011 = noch nie gelaufen)'

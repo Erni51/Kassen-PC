@@ -191,7 +191,15 @@ function Als-Url($pfad) { '"file:///' + ($pfad -replace '\\', '/') + '"' }
 if ($browser) {
     try {
         $autoHtml = [IO.Path]::ChangeExtension($datei, '.auto.html')
-        $js = '<script>addEventListener("load",function(){setTimeout(function(){window.print();setTimeout(function(){window.close()},3000)},800)})</script>'
+        # Fruehblatt (Fr/Sa/So): Spalte "Tisch" breit und hoch, mit Rahmen - zum Eintragen per Hand.
+        $tischJs = ''
+        if ($Lauf -eq 'frueh') {
+            $tischJs = 'document.querySelectorAll("table").forEach(function(t){if(!t.rows.length)return;var k=-1;' +
+                'Array.prototype.forEach.call(t.rows[0].cells,function(c,i){if(c.textContent.trim().toLowerCase()==="tisch")k=i});if(k<0)return;' +
+                'Array.prototype.forEach.call(t.rows,function(r,j){var c=r.cells[k];if(!c)return;c.style.width="24mm";c.style.minWidth="24mm";' +
+                'if(j>0){c.style.height="10mm";c.style.border="1.5px solid #000";c.style.background="#fff"}})});'
+        }
+        $js = '<script>addEventListener("load",function(){' + $tischJs + 'setTimeout(function(){window.print();setTimeout(function(){window.close()},3000)},800)})</script>'
         [System.IO.File]::WriteAllText($autoHtml, (Mit-Kopf ($css + $js)), $utf8)
         # Eigenes Chrome-Profil nur fuer den Druck. Die Druckvorgaben (Farbe, Hintergruende,
         # keine Kopf-/Fusszeile) stehen in dessen Preferences - geht ohne Adminrechte.

@@ -78,6 +78,7 @@ function Hol($adresse) {
 # Freitag und Samstag auch morgens). Das Plugin (v30.990) kennt frueh nur den
 # Sonntag - &trotzdem=1 holt das Blatt trotzdem. Vor 11 Uhr kommt es mit Fruehstueck.
 $Abruf = $Url + '&trotzdem=1'
+if ($Lauf -eq 'frueh') { $Abruf = $Abruf + '&seite2=0' }   # sobald das Plugin es kann; bis dahin schneidet Abschnitt unten
 try {
     if ($Farbtest) {
         $Lauf = 'test'
@@ -110,6 +111,25 @@ if (-not $html -or $html -notmatch 'Lieperts Tagesblatt') {
 if ($Ruhe -contains $tag -and $html -match 'Heute reist niemand ab' -and $html -match 'Heute kommt niemand an') {
     Schreib 'Ruhetag ohne An- und Abreise - nichts gedruckt.'
     exit 0
+}
+
+# --- Seite 2 (Tischplan "Tische eintragen") nur am Abend ---------------------
+# Manuel 01.10.: der Tischplan kommt erst mit dem Abenddruck, damit spaete
+# Reservierungen drauf sind. Beim Fruehlauf wird Seite 2 abgeschnitten.
+if ($Lauf -eq 'frueh') {
+    $i = $html.IndexOf('Tische eintragen')
+    $body = $html.IndexOf('<body')
+    if ($i -gt 0 -and $body -ge 0) {
+        $muster = '<(div|section|table|article)\b[^>]*(page-break-before|break-before|seite-?2|page-?2|blatt-?2|zettel)[^>]*>'
+        $treffer = [regex]::Matches($html, $muster, 'IgnoreCase') | Where-Object { $_.Index -gt $body -and $_.Index -lt $i }
+        $letzter = $treffer | Select-Object -Last 1
+        if ($letzter) {
+            $html = $html.Substring(0, $letzter.Index) + '</body></html>'
+            Schreib 'Fruehlauf: Seite 2 (Tischplan) weggelassen - kommt am Abend.'
+        } else {
+            Schreib 'Fruehlauf: Seite 2 nicht sicher abtrennbar - Blatt komplett gedruckt.'
+        }
+    }
 }
 
 # --- 4. Ablegen ---------------------------------------------------------------

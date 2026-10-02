@@ -1,0 +1,30 @@
+AUFTRAG an den Bau-Chat (der als einziger lieperts-reservation.php speichert)
+Von Manuel, 01.10.2026. Diesen ganzen Text in den Bau-Chat einfuegen.
+
+WORUM ES GEHT
+Der neue Kassen-PC druckt das Tagesblatt (?lrv8_tagesblatt=1, Block v30.960) frueh
+um 07:15 (Fr/Sa/So) und abends um 16:15 (Mo/Di/Fr/Sa). Er holt das Blatt mit
+&trotzdem=1 und der Kopfzeile X-Lieperts-Kassa-Key.
+
+1. SEITE 2 (Zettel "Tische eintragen") NUR AM ABEND
+   Manuel: "Der 2te Ausdruck mit dem Tischplan soll am Abend erst kommen, falls noch
+   Reservierungen dazukommen." Der Kassen-PC schneidet Seite 2 beim Fruehlauf derzeit
+   selbst ab (sucht das Element mit page-break vor "Tische eintragen") - das ist ein
+   Notbehelf. Bitte sauber im Plugin:
+   - Parameter &seite2=0 -> Seite 2 weglassen (der Kassen-PC haengt ihn beim Fruehlauf an),
+   - oder: vor der Grenze LRV8_V30990_GRENZE (11 Uhr) Seite 2 grundsaetzlich weglassen.
+   Bitte messen, wie Seite 2 im HTML beginnt, und die gewaehlte Loesung im STAND nennen.
+
+2. GAESTEDATENRECHERCHE AUF DIE ABEND-TAGESUEBERSICHT
+   Manuel: "Am Abend soll bei der Tagesuebersicht auch die Gaestedatenrecherche dabei stehen."
+   - Erst messen: wo liegt die Gaesterecherche heute (Baustein "recherche", v30.723 o. a.,
+     Gaesteprofil in der App), welche Felder gibt es, fuer welche Gaeste wird sie erstellt?
+   - Auf dem Abendblatt (nach 11 Uhr) je Abend-/Fine-Dining-Reservierung die Recherche-
+     Notiz kurz unter dem Gast (wie die Gaeste-Info-Zeile seit v31.073), nur wenn vorhanden.
+   - Nur was in der Recherche steht, nichts erfinden; Allergien bleiben rot.
+   - Schalter zum Abdrehen (define ..._ENABLE false), Rueckweg vorher nach Drive.
+
+REGELN WIE IMMER
+Erst messen und mappen, freie Versionsnummer selbst zaehlen (live 31.138 oder hoeher),
+Praefix auf Kollision pruefen, Patch mit angesagter Zeichenzahl zeigen, erst nach
+Manuels "Ja, speichern" bauen. Danach STAND schreiben.

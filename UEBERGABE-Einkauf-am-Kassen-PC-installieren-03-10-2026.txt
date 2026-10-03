@@ -1,0 +1,97 @@
+UEBERGABE: "Lieperts Einkauf (live)" am Kassen-PC installieren
+Von Manuel, 03.10.2026. Fuer den Claude, der DIREKT am Kassen-PC laeuft (Lieperts, HP ProDesk, Windows 11).
+Diesen ganzen Text dort einfuegen.
+
+===============================================================================
+1. WORUM ES GEHT
+===============================================================================
+Ein kleines Programm am Kassen-PC (Port 8787). Handy, Laptop oder Tablet oeffnen im Restaurant-WLAN
+eine Webseite. Das Programm sucht LIVE in den Shops (zuerst Transgourmet), rechnet auf EUR/kg bzw.
+EUR/l um, zeigt den Guenstigsten oben und legt mit dem Plus direkt in den ECHTEN Shop-Warenkorb.
+Bestellen (abschicken) tut Manuel selbst im Shop. Im Alltag kein Claude noetig.
+
+  Handy / Laptop --WLAN--> Kassen-PC :8787 --> eigenes Chrome (angemeldet) --> Transgourmet, ...
+
+Warum am Kassen-PC: eine Webseite darf nicht mit Manuels Anmeldung in einem fremden Shop suchen
+(Browser-Sperre). Das eigene Chrome am Kassen-PC ist angemeldet und sucht dort, als ob er klickt.
+
+Programm und Anleitung: https://github.com/Erni51/Kassen-PC
+  Branch claude/price-comparison-module-xqjsdz, Ordner einkauf-pc - zuerst einkauf-pc/README.md lesen.
+Stand 30.09.2026: Programm, App und Einrichtung fertig, Ende-zu-Ende-Test gegen einen Uebungs-Shop
+gruen. NOCH NICHT am echten Kassen-PC installiert (bitte pruefen, Schritt 0). Transgourmet noch nicht
+erkundet (shops/transgourmet.js steht auf fertig: false).
+
+===============================================================================
+2. WAS SCHON AM KASSEN-PC LAEUFT - NICHT ANFASSEN
+===============================================================================
+- Kassa (kassenGeist http://192.168.178.200/kasse/) im eigenen Chrome-Profil C:\Lieperts\chrome-kassa
+- Aufgaben "Kassa frueh" 07:15, "Kassa abend" 16:15, "Kassa Minibar" alle 30 Min., "Lieperts Cron" alle 5 Min.
+- Dateien C:\Lieperts\*.ps1, kassa-zugang.txt, kassa-einstellungen.txt
+- normales Chrome mit Claude-Erweiterung im Autostart
+Das Einkaufs-Programm bekommt EIGENE Dinge: Ordner C:\Lieperts\einkauf, Chrome-Profil
+C:\Lieperts\chrome-einkauf (Steuer-Port 9223, nur lokal), Aufgabe "Lieperts Einkauf" (beim Anmelden),
+Firewall-Regel "Lieperts Einkauf" (Port 8787, nur privates Netz).
+
+===============================================================================
+3. ABLAUF
+===============================================================================
+0. PRUEFEN (nur lesen) und mir melden:
+   - Gibt es C:\Lieperts\einkauf schon? Aufgabe "Lieperts Einkauf"? (schtasks /Query /TN "Lieperts Einkauf")
+     Wenn ja: NICHT neu installieren, sondern mir den Stand zeigen.
+   - Chrome installiert? Netzwerk als "Privat" eingestuft? (Get-NetConnectionProfile)
+   - Laufen die Kassa-Aufgaben? (C:\Lieperts\PRUEFEN.ps1)
+
+1. HOLEN: Repository als ZIP nach %TEMP%\kpc-einkauf entpacken:
+   https://github.com/Erni51/Kassen-PC/archive/refs/heads/claude/price-comparison-module-xqjsdz.zip
+
+2. EINRICHTEN: einkauf-pc\START-EINKAUF.cmd starten (fragt nach Administrator - ich bestaetige mit Ja).
+   Es macht: Ordner C:\Lieperts\einkauf, Node.js tragbar von nodejs.org (Pruefsumme geprueft),
+   einstellungen.json mit eigenem Schluessel, Firewall Port 8787 privat, Aufgabe "Lieperts Einkauf",
+   Start, Handy-Link.
+   Den HANDY-LINK NIE im Chat ausgeben und nirgends hinschreiben ausser dort, wo das Skript ihn ablegt
+   (C:\Lieperts\einkauf\handy-link.txt). Ich oeffne ihn selbst am Handy und speichere ihn als Lesezeichen.
+   Meldet das Skript, das Netz sei "Oeffentlich": mir sagen, ich stelle es auf "Privat".
+
+3. ANMELDEN: Im Einkaufs-Chrome (eigenes Fenster, Profil C:\Lieperts\chrome-einkauf) melde ICH mich bei
+   Transgourmet an, "Angemeldet bleiben" anhaken. Du tippst kein Passwort. Sag mir, wenn ich dran bin, und warte.
+
+4. ERKUNDEN (nur lesen):  cd C:\Lieperts\einkauf  und
+     node\node.exe erkunden.js transgourmet balsamico --sekunden 120
+   In der Zeit im Einkaufs-Chrome: nach "balsamico" suchen, einen Artikel oeffnen, die Schnellerfassung
+   (https://shop.transgourmet.at/ctx:L2NhdGFsb2cy/quickadd) ansehen. NICHT bestellen, nichts in den Warenkorb.
+
+5. EINSTELLEN: Aus erkundet\transgourmet-*\ (anfragen.json, seite.html) shops\transgourmet.js ausfuellen:
+   Such-Adresse mit {q}; Selektoren fuer Kachel, Name, Artikelnummer, Preis, Grundpreis ("1 l = ..."),
+   Inhalt, Einheit, Link, Bild; Anmelde-Merkmale; Warenkorb-Weg (Schnellerfassung: Feld Nummer, Feld Menge,
+   Knopf, Bestaetigung - oder Produktseite). Liefert der Shop die Treffer als JSON, darf suche() diese
+   Schnittstelle im Tab mit fetch(..., {credentials:'include'}) abfragen (eigene suche-Funktion, gleiche
+   Felder wie allgemein.js). Im Kopf der Datei festhalten: Preise netto? je Stueck/Flasche oder je Karton?
+
+6. PRUEFEN, bevor fertig: true gesetzt wird:
+   - Anmeldung: http://127.0.0.1:8787/api/status?neu=1 (Kopfzeile X-Schluessel aus einstellungen.json)
+     -> angemeldet true
+   - Suche "balsamico": mindestens 5 Treffer, 3 Preise mit dem Shop vergleichen; Quality Balsamico Glace
+     500 ml muss dabei sein (Katalog 17.09.: 7,70 EUR netto, 15,40 EUR/l).
+   - Warenkorb: EIN Artikel, Menge 1, ueber POST /api/korb; im Shop nachsehen, ob er drin ist; danach im
+     Shop wieder herausnehmen. Nie "Bestellen"/"Bestellung absenden" druecken.
+   Dann fertig: true, Aufgabe "Lieperts Einkauf" beenden und starten, mir berichten.
+
+7. ABSCHLUSS:
+   - shops\transgourmet.js mir zeigen (ohne Schluessel), damit sie ins Repository kommt.
+   - Am Handy pruefen: Link oeffnen, "balsamico" suchen, Anmelde-Stand oben gruen.
+   - C:\Lieperts\PRUEFEN.ps1 noch einmal: Kassa-Aufgaben unveraendert da?
+   - Kurzen STAND nach Google Drive, Ordner Claude-Ablage / Einkauf Preisvergleich.
+
+===============================================================================
+4. DANACH (nicht jetzt)
+===============================================================================
+Rungis, R&S, hollu (Abschnitt 5) · Katalog aus der Einkaufs-App uebernehmen (6) · Zugang von aussen (7) ·
+Preise nachts auffrischen (8). Die Preispflege (Runbook, Katalog, geplante Laeufe) macht weiter der Chat
+"Lieferanten-Preisvergleich system" - nicht dieser.
+
+===============================================================================
+REGELN
+===============================================================================
+Keine Kennwoerter tippen oder speichern. Nichts bestellen, nichts absenden. Kassa, Kassa-Aufgaben und das
+Kassa-Chrome nicht anfassen. Schluessel und Handy-Link nie in den Chat. Vor jedem Schritt kurz sagen, was
+du tust, und bei Schritt 3 auf mich warten. Antworte auf Deutsch, per Du, knapp.

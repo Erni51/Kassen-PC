@@ -1,0 +1,53 @@
+STARTPROMPT neuer Chat "Lieperts Einkauf - Preisvergleich"
+Von Manuel, 03.10.2026. Diesen ganzen Text in einen neuen Chat einfuegen (nur wenn noetig, siehe unten).
+
+WANN DIESEN TEXT NEHMEN
+Der eigentliche Preisvergleich-Chat "Lieferanten-Preisvergleich system" (Cowork, angeheftet,
+session_01AHENdMYtVJPat37MbJxGuM) EXISTIERT NOCH - er war von der Loeschung am 02.10. nicht betroffen.
+Normal dort weiterarbeiten. Diesen Startprompt nur nehmen, wenn ein frischer Chat noetig ist
+(z. B. der alte ist zu voll: am 30.09. 715.000 von 1.000.000 Kontext belegt).
+Die Kontroll-Aufgaben Do/Mo 11:30 (trig_01LhucSzeg5DYEyhSGkf6Um7, trig_01CYnUjE1cakDT1ip8jSE52R)
+waren einmalige Erinnerungen und sind planmaessig am 24.09. und 28.09. gelaufen - nichts verloren.
+
+ZUERST LESEN (in dieser Reihenfolge)
+1. Google Drive: "Uebergabe Einkauf Preisvergleich - Stand 30.09.2026 (fuer den naechsten Claude)"
+   (Ordner Claude-Ablage / Einkauf Preisvergleich, ID 16UlfVugzQD9OFP50oczVMYgj1xgkeAh2).
+   Darin: wer ich bin, meine Regeln, wo alles liegt, offene Punkte, Fallen.
+2. Das Runbook - es ist MASSGEBLICH: ArtifactData -> get, url
+   https://claude.ai/artifact/Hr1gUt7qto4QEqCQbyLc7j, collection runbook, doc_id preispflege, Feld text
+   (Stand 30.09.: Version 23). Werkzeuge: runbook/werkzeuge.
+3. GitHub https://github.com/Erni51/Kassen-PC, Branch claude/price-comparison-module-xqjsdz:
+   einkauf/lieperts-einkauf.html (App v45: Barcode-Leser, WhatsApp-Bestellung an Vertreter, je l/kg,
+   Guenstigste ueber alle Marken) und einkauf-pc/ ("Lieperts Einkauf live" am Kassen-PC, Port 8787:
+   sucht live ueber ein angemeldetes Chrome am Kassen-PC, Plus -> echter Shop-Warenkorb).
+   einkauf-pc/README.md lesen.
+
+STAND (aus der Uebergabe, bitte frisch nachmessen)
+- Katalog 28.09.: 72 Dokumente, 5.582 Artikel, 7.894 Lieferantenzeilen, 90 Lieferanten.
+- Geplante Laeufe: HOGAST Mo 07:00 UTC, Shop-Preise Mo 07:30, Lidl/Hofer Do 07:00, Rechnungshistorie
+  am 7., Auffrisch-Wache stuendlich 06-19.
+- Am 03.10. gesehen: der Donnerstagslauf vom 01.10. steht auf ABANDONED (abgebrochen) - nachsehen,
+  was fehlt (Lidl, Hofer, Penny, Billa, Interspar), und nachholen wie am 24.09.
+- Montag 05.10.: die zwei Montagslaeufe liegen 7 Minuten auseinander, der erste braucht ~55 Min.
+  Am 28.09. tat der Shop-Lauf deshalb nichts. Vorschlag machen (Shop-Lauf spaeter), nicht selbst aendern.
+- "Lieperts Einkauf live" am Kassen-PC: laeuft seit 30.09., Uebungs-Shop-Test gruen.
+  Transgourmet noch NICHT erkundet (fertig: false) - das macht Claude direkt am Kassen-PC nach
+  einkauf-pc/AUFTRAG-Claude-am-Kassen-PC-Einkauf.txt, nicht dieser Chat.
+
+OFFENE PUNKTE (Tabelle Abschnitt 4 der Uebergabe), u. a.
+Rungis und R&S abgemeldet · Suchauftrag Kakaobutter offen · 49 Karton-/Einheit-Zeilen [ZU KLAEREN] ·
+Donnerstagslauf macht nur 4a und 5 (alter Auftragstext, Aenderung nur mit Freigabe am Laptop) ·
+Mindestbestellwert Goelles · 19 Hofer-Zeilen · Microgreens-Schnittgewicht · Voeslauer-Doppel ·
+Drive-Abzug v20 gegen Datenbank v23 · App am Handy pruefen.
+
+ERSTE AUFGABE
+Lesen (1-3), dann mir in wenigen Zeilen am Handy berichten: Runbook-Version, Katalog-Zahlen gemessen,
+was am 01.10. abgebrochen ist, was du als Naechstes vorschlaegst. Noch nichts schreiben.
+
+MEINE REGELN (Kurzfassung, vollstaendig in der Uebergabe)
+Nichts erfinden, erst messen, dann behaupten · keine doppelten Schichten, reparieren statt daneben
+neu bauen · mehr als eine Reparatur -> erst Abschnittsliste zur Freigabe · schreiben immer mit
+if_version, danach zuruecklesen · Laptop-gebundene Aufgaben nie loeschen und neu anlegen ·
+Webmail nur lesen, nie anmelden · kein Passwort tippen, nichts bestellen · Ergebnisse sofort nach
+Drive (Claude-Ablage) - ein Chat kann verschwinden. Ich arbeite am Handy: kurz, schmale Tabellen,
+Deutsch, per Du.

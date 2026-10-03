@@ -1,0 +1,106 @@
+UEBERGABE an den Bau-Chat (der als einziger lieperts-reservation.php speichert)
+vom Kassen-PC-Chat. Von Manuel, 03.10.2026. Diesen ganzen Text in den Bau-Chat einfuegen,
+NACH der Uebergabe UEBERGABE-BAU-CHAT-29-09-2026.md aus dem Drive.
+
+WARUM DIESE UEBERGABE
+Am 02.10.2026 gegen 10:25 sind beim Loeschen EINES Chats fuenf Claude-Code-Sitzungen
+verschwunden, darunter der vorige Bau-Chat ("lieperts-reservation.php Patches") - mitten
+in der Arbeit am Auftrag "Tagesblatt Abend" (unten Punkt A). Ob davon schon etwas live
+gespeichert wurde, ist NICHT bekannt. Deshalb: zuerst messen, was live ist.
+
+-------------------------------------------------------------------------------
+1. WAS DER KASSEN-PC IST
+-------------------------------------------------------------------------------
+HP ProDesk 400 G6 Mini, Windows 11, im Lokal neben der Kassa (kassenGeist,
+http://192.168.178.200/kasse/). Er ist nur der BOTE zwischen lieperts.at und der Kassa.
+Skripte und Anleitung: https://github.com/Erni51/Kassen-PC, Ordner kassen-pc/
+(Branch claude/neuer-kassen-pc-setup-rkekre). Am PC liegen sie unter C:\Lieperts\.
+
+Geplante Aufgaben am PC:
+  Kassa frueh     taeglich 07:15  Tagesdaten holen, Zimmerpreise schreiben, Tagesblatt (Fr/Sa/So)
+  Kassa abend     taeglich 16:15  dasselbe, Tagesblatt (Mo/Di/Fr/Sa)
+  Kassa Minibar   alle 30 Min.    offene Minibar-Posten auf die Minibar-Knoepfe
+  Lieperts Cron   alle 5 Min.     ruft https://www.lieperts.at/wp-cron.php auf
+                                  (Google-Abgleich, Feratel, Erinnerungsmails)
+
+-------------------------------------------------------------------------------
+2. WAS DER KASSEN-PC VON LIEPERTS.AT LIEST - BITTE NICHT BRECHEN
+-------------------------------------------------------------------------------
+Zugang bei beiden Abrufen: Kopfzeile X-Lieperts-Kassa-Key = LRV8_KASSA_KEY aus der
+wp-config.php (am PC erzeugt, von Manuel selbst eingetragen, laeuft NIE ueber einen Chat).
+
+a) GET /wp-json/lieperts/v1/kassa-tagesdaten   (live seit 30.09.2026, erster echter
+   Lauf 30.09. 22:25: 12 von 12 Artikeln geschrieben und zurueckgelesen)
+   Der PC liest genau diese Felder - Namen nicht aendern, nur ergaenzen:
+     datum
+     drucken            true/"ja" -> Tagesblatt drucken
+     trockenlauf, test  true -> PC schreibt nichts in die Kassa
+     zimmer[]:
+       zimmer           Salbei | Muskat | Pfeffer | Rosmarin
+       schreiben        true -> Abreisetag: Name mit Gast + Betrag schreiben
+       zuruecksetzen    true (oder leer: true) -> Knopf leeren (Name ohne Gast, 0,00)
+       gast, status, lage   (Eigenbelegung|Wartung|Sperre|Storno|closed|blocked -> uebersprungen)
+       kassa[]:  artikel_id, label, betrag, menge, ust
+                 label beginnt mit "Zimmer" = Zimmerpreis; sonst Abgaben (Naechtigungsabgabe,
+                 Infrastrukturbeitrag) mit Menge
+     minibar[]          offene Minibar-Eintraege aus dem Gaeste-Formular; der PC sucht darin
+                        den Zimmernamen und je Posten name/menge/preis (auch artikel/anzahl/
+                        einzelpreis). Getraenke -> Knopf "Minibar <Zimmer>" (20 %),
+                        Snacks -> "Minibar Snacks <Zimmer>" (10 %).
+   Sicherungen am PC: nur die 12 freigegebenen Artikel-IDs der Gruppe ZIMMER TEST, nie 0,
+   nie 179 (Platzhalter), ueber 5.000 EUR bricht er ganz ab, nach jedem Schreiben zuruecklesen.
+   Keine Bons, Umsaetze, Rechnungen (RKSV).
+
+b) GET /?lrv8_tagesblatt=1&trotzdem=1          (Block v30.960)
+   Beim Fruehlauf haengt der PC zusaetzlich &seite2=0 an (siehe Punkt A1).
+   Die Drucktage bestimmt derzeit der PC selbst: frueh Fr/Sa/So 07:15, abends
+   Mo/Di/Fr/Sa 16:15. Darum &trotzdem=1 (v30.990 kennt frueh nur den Sonntag).
+   Was der PC VOR dem Druck am HTML macht (nicht doppelt im Plugin bauen):
+     - Schrift reines Schwarz, Hintergruende mitdrucken und kraeftiger machen
+     - Fruehlauf: Seite 2 abschneiden (sucht das Element mit page-break vor
+       "Tische eintragen") - NOTBEHELF, siehe A1
+     - Fruehlauf: Spalte "Tisch" breit, hoch und umrahmt zum Eintragen per Hand
+   wp-config-Schalter: LRV8_V30960_FARBE true, LRV8_V30960_SEITE2_SW false.
+
+-------------------------------------------------------------------------------
+3. OFFENE AUFTRAEGE AN DEN BAU-CHAT
+-------------------------------------------------------------------------------
+A) TAGESBLATT ABEND (Auftrag vom 01./02.10., war in Arbeit, als der Chat verschwand)
+   Volltext: kassen-pc/AUFTRAG-Bau-Chat-Tagesblatt-Abend.txt
+   A1. Seite 2 ("Tische eintragen", Tischplan) NUR AM ABEND.
+       Sauber im Plugin: Parameter &seite2=0 -> Seite 2 weglassen (der PC schickt ihn
+       schon beim Fruehlauf), oder vor LRV8_V30990_GRENZE (11 Uhr) grundsaetzlich weglassen.
+       Messen, wie Seite 2 im HTML beginnt; Loesung im STAND nennen. Danach kann der
+       Notbehelf am PC raus (sag es Manuel, der Kassen-PC-Chat baut ihn aus).
+   A2. Gaestedatenrecherche auf das Abendblatt (nach 11 Uhr): je Abend-/Fine-Dining-
+       Reservierung die Recherche-Notiz kurz unter dem Gast (wie die Gaeste-Info-Zeile seit
+       v31.073), nur wenn vorhanden, nichts erfinden, Allergien bleiben rot.
+       Erst messen, wo die Recherche heute liegt (Baustein "recherche", v30.723 o. a.).
+       Schalter define ..._ENABLE false, Rueckweg vorher nach Drive.
+
+B) DRUCKTAG-REGEL IM PLUGIN (aus dem Auftrag vom 30.09., Stand unbekannt - bitte messen)
+   Manuel 30.09.: frueh auch Freitag und Samstag, nicht nur Sonntag. Wenn v30.990/v31.015
+   das kann, sagt "drucken" in den Tagesdaten die Wahrheit und der PC koennte spaeter
+   ohne &trotzdem=1 auskommen. Nicht eilig - der PC druckt bis dahin nach eigener Regel.
+
+C) ALTE BRUECKE lrv8_v2970_* (v29.71, zeigt auf "api/room-prices", das es in der Kassa nie
+   gab): kassa_enabled bleibt 0, Zeitplan lrv8_v2970_kassa_auto_sync abmelden (falls noch
+   nicht geschehen - messen). Rauswerfen spaeter beim Aufraeumen.
+
+-------------------------------------------------------------------------------
+4. ZUERST MESSEN (bevor irgendetwas gebaut wird)
+-------------------------------------------------------------------------------
+- Welche Version ist live? (am 01.10. 31.138 oder hoeher) Gibt es Teile von A schon
+  (&seite2, Recherche-Zeile)? Was steht im letzten STAND im Drive?
+- Liefert /wp-json/lieperts/v1/kassa-tagesdaten noch alle Felder aus Punkt 2a?
+- Was ist aus B und C geworden?
+Ergebnis kurz an Manuel, dann erst Patch.
+
+-------------------------------------------------------------------------------
+REGELN WIE IMMER
+-------------------------------------------------------------------------------
+Erst messen und mappen, freie Versionsnummer selbst zaehlen, Praefix auf Kollision pruefen
+(Datei UND Snippets), Patch mit angesagter Zeichenzahl zeigen, erst nach Manuels
+"Ja, speichern" bauen. Rueckweg und Schalter vorher nach Drive. Danach STAND schreiben.
+Schluessel und Quick-Login-URLs nie in einen Chat.
+NEU: Jeden STAND und jede Uebergabe sofort nach Drive - ein Chat kann verschwinden.

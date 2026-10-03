@@ -87,7 +87,17 @@ try {
                 '<p style="background:#e53935;padding:8px">kraeftig rot</p><p style="background:#fff176;padding:8px">Tisch __ (gelb)</p>' +
                 '<p style="background:#90caf9;padding:8px">blau</p></body></html>'
     } else {
-        $html = Hol $Abruf
+        # 03.10.: um 07:15-07:25 kein Internet ("Remotename konnte nicht aufgeloest werden").
+        # Darum bis zu 9 Versuche im Abstand von 5 Minuten (rund 40 Minuten).
+        $html = $null
+        for ($v = 1; $v -le 9; $v++) {
+            try { $html = Hol $Abruf; break }
+            catch {
+                if ($v -eq 9) { throw }
+                Schreib ("Blatt holen - Versuch $v von 9 gescheitert: " + $_.Exception.Message)
+                Start-Sleep -Seconds 300
+            }
+        }
     }
 } catch {
     Schreib ('BLATT NICHT ERHALTEN: ' + $_.Exception.Message)

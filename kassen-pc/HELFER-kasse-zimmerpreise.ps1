@@ -368,7 +368,10 @@ if ($daten -and $null -ne $daten.drucken) {
         Schreib 'WordPress sagt drucken - Tagesblatt wird gedruckt.'
         & $druck -Lauf $Lauf -Immer
     } else {
-        Schreib 'WordPress sagt heute kein Druck.'
+        # WordPress (v30.990) kennt frueh nur den Sonntag - Manuel 30.09.: Fr und Sa
+        # auch morgens. Darum zusaetzlich die Drucktage dieses PCs pruefen.
+        Schreib 'WordPress sagt heute kein Druck - Drucktage des Kassen-PCs werden geprueft.'
+        & $druck -Lauf $Lauf
     }
 } else {
     # Solange die Tagesdaten-Schnittstelle fehlt: Drucktage wie im Plugin
